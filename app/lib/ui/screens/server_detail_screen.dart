@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/domain/entities/metrics.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/metric_card.dart';
 import 'package:qwe1/ui/widgets/status_indicator.dart';
 
@@ -25,7 +26,7 @@ class ServerDetailScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
               ref.invalidate(serverProvider(serverId));
               ref.invalidate(serverMetricsProvider(serverId));
@@ -42,19 +43,14 @@ class ServerDetailScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Server status header
               _buildServerHeader(context, server),
-              const SizedBox(height: 24),
-
-              // Live metrics
+              const SizedBox(height: 20),
               metricsAsync.when(
                 data: (metrics) => _buildMetricsSection(context, metrics),
                 loading: () => _buildMetricsLoading(),
-                error: (error, _) => _buildMetricsError(error),
+                error: (error, _) => _buildMetricsError(context, error),
               ),
-              const SizedBox(height: 24),
-
-              // Quick actions
+              const SizedBox(height: 20),
               _buildQuickActions(context),
             ],
           ),
@@ -64,7 +60,7 @@ class ServerDetailScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              Icon(Icons.error_outline_rounded, size: 48, color: context.danger),
               const SizedBox(height: 16),
               Text('Error: $error'),
             ],
@@ -75,9 +71,25 @@ class ServerDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildServerHeader(BuildContext context, server) {
+    final isOnline = server.status.toLowerCase() == 'online' ||
+        server.status.toLowerCase() == 'connected';
+
     return Card(
-      child: Padding(
+      child: Container(
         padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: isOnline
+              ? LinearGradient(
+                  colors: [
+                    context.success.withOpacity(0.05),
+                    context.success.withOpacity(0.02),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -91,26 +103,41 @@ class ServerDetailScreen extends ConsumerWidget {
                     children: [
                       Text(
                         server.name,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
+                            ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         server.agentUrl,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.onSurfaceMuted,
+                            ),
                       ),
                     ],
                   ),
                 ),
                 if (server.readOnly)
-                  Chip(
-                    label: const Text('Read-only'),
-                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Read-only',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                _buildInfoChip(context, 'Uptime', _formatUptime(server)),
+                _buildInfoChip(context, 'Uptime', 'Up'),
                 const SizedBox(width: 8),
                 _buildInfoChip(context, 'Agent', server.agentVersion),
               ],
@@ -124,22 +151,26 @@ class ServerDetailScreen extends ConsumerWidget {
   Widget _buildInfoChip(BuildContext context, String label, String value) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.onSurfaceMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
+            const SizedBox(height: 2),
             Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
           ],
@@ -156,48 +187,57 @@ class ServerDetailScreen extends ConsumerWidget {
       children: [
         Text(
           'System Metrics',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
         ),
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.3,
           children: [
             MetricCard(
               label: 'CPU',
               value: '${host.cpu.percent.toStringAsFixed(1)}%',
-              icon: Icons.speed,
+              icon: Icons.speed_rounded,
               color: _getMetricColor(host.cpu.percent),
+              progress: host.cpu.percent / 100,
             ),
             MetricCard(
               label: 'Memory',
               value: '${host.memory.percent.toStringAsFixed(1)}%',
-              icon: Icons.memory,
+              icon: Icons.memory_rounded,
               color: _getMetricColor(host.memory.percent),
+              progress: host.memory.percent / 100,
             ),
             MetricCard(
               label: 'Disk',
               value: host.disk.isNotEmpty
                   ? '${host.disk.first.percent.toStringAsFixed(1)}%'
                   : '-',
-              icon: Icons.storage,
+              icon: Icons.storage_rounded,
               color: host.disk.isNotEmpty
                   ? _getMetricColor(host.disk.first.percent)
                   : Colors.grey,
+              progress: host.disk.isNotEmpty ? host.disk.first.percent / 100 : 0,
             ),
             MetricCard(
               label: 'Temperature',
               value: host.sensors.isNotEmpty
                   ? '${host.sensors.first.celsius.toStringAsFixed(1)}°C'
                   : '-',
-              icon: Icons.thermostat,
+              icon: Icons.thermostat_rounded,
               color: host.sensors.isNotEmpty
                   ? _getTempColor(host.sensors.first.celsius)
                   : Colors.grey,
+              progress: host.sensors.isNotEmpty
+                  ? (host.sensors.first.celsius / 100).clamp(0.0, 1.0)
+                  : 0,
             ),
           ],
         ),
@@ -214,14 +254,16 @@ class ServerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetricsError(Object error) {
+  Widget _buildMetricsError(BuildContext context, Object error) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Center(
           child: Text(
-            'Unable to load metrics: $error',
-            style: const TextStyle(color: Colors.red),
+            'Unable to load metrics',
+            style: TextStyle(
+              color: context.onSurfaceMuted,
+            ),
           ),
         ),
       ),
@@ -234,39 +276,46 @@ class ServerDetailScreen extends ConsumerWidget {
       children: [
         Text(
           'Quick Actions',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
         ),
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.2,
+          childAspectRatio: 1.1,
           children: [
             _buildActionCard(
               context,
-              icon: Icons.inventory_2,
+              icon: Icons.inventory_2_rounded,
               label: 'Containers',
+              color: const Color(0xFF10B981),
               onTap: () => context.push('/server/$serverId/containers'),
             ),
             _buildActionCard(
               context,
-              icon: Icons.terminal,
+              icon: Icons.terminal_rounded,
               label: 'Terminal',
+              color: const Color(0xFF8B5CF6),
               onTap: () => context.push('/server/$serverId/terminal'),
             ),
             _buildActionCard(
               context,
-              icon: Icons.folder,
+              icon: Icons.folder_rounded,
               label: 'Files',
+              color: const Color(0xFFF59E0B),
               onTap: () => context.push('/server/$serverId/files'),
             ),
             _buildActionCard(
               context,
-              icon: Icons.notifications,
+              icon: Icons.notifications_rounded,
               label: 'Alerts',
+              color: const Color(0xFFEF4444),
               onTap: () => context.push('/server/$serverId/alerts'),
             ),
           ],
@@ -279,17 +328,26 @@ class ServerDetailScreen extends ConsumerWidget {
     BuildContext context, {
     required IconData icon,
     required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, size: 26, color: color),
+            ),
+            const SizedBox(height: 10),
             Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -303,19 +361,14 @@ class ServerDetailScreen extends ConsumerWidget {
   }
 
   Color _getMetricColor(double percent) {
-    if (percent >= 90) return Colors.red;
-    if (percent >= 70) return Colors.orange;
-    return Colors.green;
+    if (percent >= 90) return const Color(0xFFEF4444);
+    if (percent >= 70) return const Color(0xFFF59E0B);
+    return const Color(0xFF22C55E);
   }
 
   Color _getTempColor(double celsius) {
-    if (celsius >= 75) return Colors.red;
-    if (celsius >= 60) return Colors.orange;
-    return Colors.green;
-  }
-
-  String _formatUptime(server) {
-    // TODO: Implement proper uptime formatting
-    return 'Up';
+    if (celsius >= 75) return const Color(0xFFEF4444);
+    if (celsius >= 60) return const Color(0xFFF59E0B);
+    return const Color(0xFF22C55E);
   }
 }

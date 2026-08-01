@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:qwe1/domain/entities/container.dart' as domain;
+import 'package:qwe1/ui/widgets/status_indicator.dart';
 
-class ContainerCard extends StatelessWidget {
+class ContainerCard extends material.StatelessWidget {
   const ContainerCard({
     super.key,
     required this.container,
@@ -12,81 +13,134 @@ class ContainerCard extends StatelessWidget {
   });
 
   final domain.Container container;
-  final VoidCallback onTap;
-  final VoidCallback? onStart;
-  final VoidCallback? onStop;
-  final VoidCallback? onRestart;
+  final material.VoidCallback onTap;
+  final material.VoidCallback? onStart;
+  final material.VoidCallback? onStop;
+  final material.VoidCallback? onRestart;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
+  material.Widget build(material.BuildContext context) {
+    final isRunning = container.state.toLowerCase() == 'running';
+
+    return material.Card(
+      child: material.InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: material.BorderRadius.circular(20),
+        child: material.Padding(
+          padding: const material.EdgeInsets.all(14),
+          child: material.Column(
+            crossAxisAlignment: material.CrossAxisAlignment.start,
             children: [
-              Row(
+              material.Row(
                 children: [
-                  _buildStatusIndicator(),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  StatusIndicator(
+                    status: isRunning ? 'online' : 'offline',
+                    size: 10,
+                  ),
+                  const material.SizedBox(width: 12),
+                  material.Expanded(
+                    child: material.Column(
+                      crossAxisAlignment: material.CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          container.name,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                        material.Text(
+                          container.name.isNotEmpty ? container.name : container.id.substring(0, 12),
+                          style: material.Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: material.FontWeight.w600,
                               ),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: material.TextOverflow.ellipsis,
                         ),
-                        Text(
+                        const material.SizedBox(height: 2),
+                        material.Text(
                           container.image,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          style: material.Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: material.Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: material.TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    onSelected: _handleAction,
+                  material.PopupMenuButton<String>(
                     itemBuilder: (context) => [
-                      if (container.state != 'running')
-                        const PopupMenuItem(value: 'start', child: Text('Start')),
-                      if (container.state == 'running') ...[
-                        const PopupMenuItem(value: 'stop', child: Text('Stop')),
-                        const PopupMenuItem(value: 'restart', child: Text('Restart')),
-                      ],
+                      if (!isRunning && onStart != null)
+                        const material.PopupMenuItem(
+                          value: 'start',
+                          child: material.Row(
+                            children: [
+                              material.Icon(material.Icons.play_arrow_rounded, size: 20),
+                              material.SizedBox(width: 8),
+                              material.Text('Start'),
+                            ],
+                          ),
+                        ),
+                      if (isRunning && onStop != null)
+                        const material.PopupMenuItem(
+                          value: 'stop',
+                          child: material.Row(
+                            children: [
+                              material.Icon(material.Icons.stop_rounded, size: 20),
+                              material.SizedBox(width: 8),
+                              material.Text('Stop'),
+                            ],
+                          ),
+                        ),
+                      if (isRunning && onRestart != null)
+                        const material.PopupMenuItem(
+                          value: 'restart',
+                          child: material.Row(
+                            children: [
+                              material.Icon(material.Icons.restart_alt_rounded, size: 20),
+                              material.SizedBox(width: 8),
+                              material.Text('Restart'),
+                            ],
+                          ),
+                        ),
                     ],
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'start':
+                          onStart?.call();
+                          break;
+                        case 'stop':
+                          onStop?.call();
+                          break;
+                        case 'restart':
+                          onRestart?.call();
+                          break;
+                      }
+                    },
+                    icon: material.Icon(
+                      material.Icons.more_vert_rounded,
+                      color: material.Theme.of(context).colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildMetricBadge(
-                    context,
-                    'CPU',
-                    '${container.cpuPercent.toStringAsFixed(1)}%',
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricBadge(
-                    context,
-                    'MEM',
-                    _formatBytes(container.memoryBytes),
-                  ),
-                  const Spacer(),
-                  if (container.health.isNotEmpty)
-                    _buildHealthBadge(context),
-                ],
-              ),
+              if (isRunning) ...[
+                const material.SizedBox(height: 12),
+                material.Row(
+                  children: [
+                    _buildMetricBadge(
+                      context,
+                      material.Icons.speed_rounded,
+                      '${container.cpuPercent.toStringAsFixed(1)}%',
+                    ),
+                    const material.SizedBox(width: 8),
+                    _buildMetricBadge(
+                      context,
+                      material.Icons.memory_rounded,
+                      _formatBytes(container.memoryBytes),
+                    ),
+                    if (container.health.isNotEmpty) ...[
+                      const material.SizedBox(width: 8),
+                      _buildHealthBadge(context, container.health),
+                    ],
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -94,52 +148,22 @@ class ContainerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIndicator() {
-    Color color;
-    switch (container.state) {
-      case 'running':
-        color = Colors.green;
-        break;
-      case 'exited':
-        color = Colors.red;
-        break;
-      case 'paused':
-        color = Colors.orange;
-        break;
-      default:
-        color = Colors.grey;
-    }
-
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
+  material.Widget _buildMetricBadge(material.BuildContext context, material.IconData icon, String value) {
+    return material.Container(
+      padding: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: material.BoxDecoration(
+        color: material.Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+        borderRadius: material.BorderRadius.circular(8),
       ),
-    );
-  }
-
-  Widget _buildMetricBadge(BuildContext context, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
+      child: material.Row(
+        mainAxisSize: material.MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(width: 4),
-          Text(
+          material.Icon(icon, size: 12, color: material.Theme.of(context).colorScheme.onSurfaceVariant),
+          const material.SizedBox(width: 4),
+          material.Text(
             value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+            style: material.Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: material.FontWeight.w600,
                 ),
           ),
         ],
@@ -147,32 +171,26 @@ class ContainerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHealthBadge(BuildContext context) {
-    Color color;
-    switch (container.health) {
-      case 'healthy':
-        color = Colors.green;
-        break;
-      case 'unhealthy':
-        color = Colors.red;
-        break;
-      default:
-        color = Colors.orange;
-    }
+  material.Widget _buildHealthBadge(material.BuildContext context, String health) {
+    final color = health.toLowerCase() == 'healthy'
+        ? material.Colors.green
+        : health.toLowerCase() == 'unhealthy'
+            ? material.Colors.red
+            : material.Colors.orange;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
+    return material.Container(
+      padding: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: material.BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: material.BorderRadius.circular(8),
       ),
-      child: Text(
-        container.health.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+      child: material.Text(
+        health.toUpperCase(),
+        style: material.Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: material.FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
       ),
     );
   }
@@ -184,19 +202,5 @@ class ContainerCard extends StatelessWidget {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
-  void _handleAction(String action) {
-    switch (action) {
-      case 'start':
-        onStart?.call();
-        break;
-      case 'stop':
-        onStop?.call();
-        break;
-      case 'restart':
-        onRestart?.call();
-        break;
-    }
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qwe1/domain/entities/container.dart' as domain;
 import 'package:qwe1/state/docker/container_provider.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/widgets/status_indicator.dart';
 
 class ContainerDetailScreen extends ConsumerWidget {
   const ContainerDetailScreen({
@@ -15,169 +16,222 @@ class ContainerDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final containerAsync = ref.watch(
-      containerProvider((serverId: serverId, containerId: containerId)),
-    );
+    final containerAsync = ref.watch(containerProvider((serverId: serverId, containerId: containerId)));
 
     return Scaffold(
       appBar: AppBar(
         title: containerAsync.when(
-          data: (container) => Text(container.name),
+          data: (c) => Text(c.name.isNotEmpty ? c.name : c.id.substring(0, 12)),
           loading: () => const Text('Loading...'),
           error: (_, __) => const Text('Container'),
         ),
         actions: [
           PopupMenuButton<String>(
-            onSelected: (action) => _handleAction(context, ref, action),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'inspect', child: Text('Inspect')),
-              const PopupMenuItem(value: 'logs', child: Text('View Logs')),
+              const PopupMenuItem(
+                value: 'inspect',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text('Inspect'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logs',
+                child: Row(
+                  children: [
+                    Icon(Icons.article_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('View Logs'),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(),
-              const PopupMenuItem(value: 'kill', child: Text('Kill')),
+              const PopupMenuItem(
+                value: 'kill',
+                child: Row(
+                  children: [
+                    Icon(Icons.stop_circle_rounded, size: 20, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('Kill', style: TextStyle(color: Colors.orange)),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'remove',
-                child: Text('Remove', style: TextStyle(color: Colors.red)),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_rounded, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Remove', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
               ),
             ],
+            onSelected: (value) {
+              // TODO: Implement inspect/logs navigation
+            },
           ),
         ],
       ),
       body: containerAsync.when(
-        data: (container) => _buildContent(context, ref, container),
+        data: (container) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildStatusCard(context, container),
+            const SizedBox(height: 16),
+            _buildActionButtons(context, ref),
+            const SizedBox(height: 16),
+            _buildDetailsSection(context, container),
+          ],
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Error: $error')),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, domain.Container container) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Status card
-          _buildStatusCard(context, container),
-          const SizedBox(height: 16),
+  Widget _buildStatusCard(BuildContext context, container) {
+    final stateColor = _getStateColor(context, container.state);
 
-          // Actions
-          _buildActionButtons(context, ref, container),
-          const SizedBox(height: 16),
-
-          // Details
-          _buildDetailsSection(context, container),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(BuildContext context, domain.Container container) {
     return Card(
-      child: Padding(
+      child: Container(
         padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [
+              stateColor.withOpacity(0.06),
+              stateColor.withOpacity(0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _buildStatusChip(container.state),
-                const SizedBox(width: 8),
-                if (container.health.isNotEmpty)
-                  _buildHealthChip(container.health),
+                StatusIndicator(
+                  status: container.state.toLowerCase() == 'running' ? 'online' : 'offline',
+                  size: 10,
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: stateColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    container.state.toUpperCase(),
+                    style: TextStyle(
+                      color: stateColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                if (container.health.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getHealthColor(context, container.health).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      container.health.toUpperCase(),
+                      style: TextStyle(
+                        color: _getHealthColor(context, container.health),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Image', container.image),
-            _buildDetailRow('Status', container.status),
+            _buildInfoRow(context, 'Image', container.image),
+            if (container.status.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildInfoRow(context, 'Status', container.status),
+            ],
             if (container.ports.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text('Ports'),
-              ...container.ports.map((port) => Padding(
-                    padding: const EdgeInsets.only(left: 8, top: 4),
-                    child: Text('${port.host} -> ${port.container}/${port.protocol}'),
-                  )),
+              _buildInfoRow(context, 'Ports', container.ports.map((p) => '${p.host}:${p.container}').join(', ')),
             ],
-            const SizedBox(height: 8),
-            _buildDetailRow('CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
-            _buildDetailRow('Memory', _formatBytes(container.memoryBytes)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusChip(String state) {
-    Color color;
-    switch (state) {
-      case 'running':
-        color = Colors.green;
-        break;
-      case 'exited':
-        color = Colors.red;
-        break;
-      case 'paused':
-        color = Colors.orange;
-        break;
-      default:
-        color = Colors.grey;
-    }
-
-    return Chip(
-      label: Text(state.toUpperCase()),
-      backgroundColor: color.withOpacity(0.2),
-      labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
+  Widget _buildInfoRow(BuildContext context, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.onSurfaceMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildHealthChip(String health) {
-    Color color;
-    switch (health) {
-      case 'healthy':
-        color = Colors.green;
-        break;
-      case 'unhealthy':
-        color = Colors.red;
-        break;
-      default:
-        color = Colors.orange;
-    }
-
-    return Chip(
-      label: Text(health.toUpperCase()),
-      backgroundColor: color.withOpacity(0.2),
-      labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref, domain.Container container) {
-    final notifier = ref.read(containerListProvider(serverId).notifier);
-
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: container.state == 'running'
-                ? null
-                : () => notifier.startContainer(container.id),
-            icon: const Icon(Icons.play_arrow),
+            onPressed: () {},
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
             label: const Text('Start'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.success,
+              foregroundColor: Colors.white,
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: container.state != 'running'
-                ? null
-                : () => notifier.stopContainer(container.id),
-            icon: const Icon(Icons.stop),
+            onPressed: () {},
+            icon: const Icon(Icons.stop_rounded, size: 20),
             label: const Text('Stop'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.danger,
+              foregroundColor: Colors.white,
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => notifier.restartContainer(container.id),
-            icon: const Icon(Icons.refresh),
+            onPressed: () {},
+            icon: const Icon(Icons.restart_alt_rounded, size: 20),
             label: const Text('Restart'),
           ),
         ),
@@ -185,7 +239,7 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailsSection(BuildContext context, domain.Container container) {
+  Widget _buildDetailsSection(BuildContext context, container) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -194,39 +248,76 @@ class ContainerDetailScreen extends ConsumerWidget {
           children: [
             Text(
               'Details',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: 12),
-            _buildDetailRow('ID', container.id.substring(0, 12)),
-            _buildDetailRow('Name', container.name),
-            _buildDetailRow('Image', container.image),
-            if (container.createdAt != null)
-              _buildDetailRow('Created', container.createdAt.toString()),
+            _buildDetailRow(context, 'ID', container.id.substring(0, 12)),
+            _buildDetailRow(context, 'Name', container.name.isNotEmpty ? container.name : '-'),
+            _buildDetailRow(context, 'Image', container.image),
+            _buildDetailRow(context, 'Memory', _formatBytes(container.memoryBytes)),
+            _buildDetailRow(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 80,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.onSurfaceMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Color _getStateColor(BuildContext context, String state) {
+    switch (state.toLowerCase()) {
+      case 'running':
+        return context.success;
+      case 'exited':
+      case 'created':
+        return context.onSurfaceMuted;
+      case 'paused':
+        return context.warning;
+      default:
+        return context.onSurfaceMuted;
+    }
+  }
+
+  Color _getHealthColor(BuildContext context, String health) {
+    switch (health.toLowerCase()) {
+      case 'healthy':
+        return context.success;
+      case 'unhealthy':
+        return context.danger;
+      default:
+        return context.warning;
+    }
   }
 
   String _formatBytes(int bytes) {
@@ -236,69 +327,5 @@ class ContainerDetailScreen extends ConsumerWidget {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
-  void _handleAction(BuildContext context, WidgetRef ref, String action) {
-    final notifier = ref.read(containerListProvider(serverId).notifier);
-
-    switch (action) {
-      case 'inspect':
-        // TODO: Navigate to inspect screen
-        break;
-      case 'logs':
-        // TODO: Navigate to logs screen
-        break;
-      case 'kill':
-        _showConfirmDialog(
-          context,
-          title: 'Kill Container',
-          message: 'Are you sure you want to kill this container?',
-          onConfirm: () => notifier.killContainer(containerId),
-        );
-        break;
-      case 'remove':
-        _showConfirmDialog(
-          context,
-          title: 'Remove Container',
-          message: 'This will permanently remove the container.',
-          destructive: true,
-          onConfirm: () => notifier.removeContainer(containerId),
-        );
-        break;
-    }
-  }
-
-  void _showConfirmDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-    bool destructive = false,
-    required VoidCallback onConfirm,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              onConfirm();
-            },
-            child: Text(
-              'Confirm',
-              style: TextStyle(
-                color: destructive ? Colors.red : Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

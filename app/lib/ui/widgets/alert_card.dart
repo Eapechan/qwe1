@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qwe1/domain/entities/alert.dart';
 import 'package:qwe1/core/utils/formatters.dart';
+import 'package:qwe1/domain/entities/alert.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 
 class AlertCard extends StatelessWidget {
   const AlertCard({
@@ -14,82 +15,97 @@ class AlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final severity = _getSeverityConfig(context, alert.severity);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        padding: const EdgeInsets.all(14),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                _buildSeverityIcon(),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: severity.color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                severity.icon,
+                color: severity.color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        _getTypeLabel(alert.type),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                      Expanded(
+                        child: Text(
+                          _getTypeLabel(alert.type),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
                       ),
                       Text(
                         Formatters.formatRelative(alert.at),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: context.onSurfaceMuted,
                             ),
                       ),
                     ],
                   ),
-                ),
-                if (!alert.acked)
-                  TextButton(
-                    onPressed: onAcknowledge,
-                    child: const Text('Ack'),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.message,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.onSurfaceMuted,
+                          height: 1.4,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              alert.message,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            if (!alert.acked && onAcknowledge != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: onAcknowledge,
+                icon: const Icon(Icons.check_circle_outline, size: 20),
+                tooltip: 'Acknowledge',
+                color: context.onSurfaceMuted,
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSeverityIcon() {
-    IconData icon;
-    Color color;
-
-    switch (alert.severity) {
+  _SeverityConfig _getSeverityConfig(BuildContext context, AlertSeverity severity) {
+    switch (severity) {
       case AlertSeverity.critical:
-        icon = Icons.error;
-        color = Colors.red;
-        break;
+        return _SeverityConfig(
+          color: context.danger,
+          icon: Icons.error_rounded,
+        );
       case AlertSeverity.warning:
-        icon = Icons.warning;
-        color = Colors.orange;
-        break;
+        return _SeverityConfig(
+          color: context.warning,
+          icon: Icons.warning_rounded,
+        );
       case AlertSeverity.info:
-        icon = Icons.info;
-        color = Colors.blue;
-        break;
+        return _SeverityConfig(
+          color: context.info,
+          icon: Icons.info_rounded,
+        );
     }
-
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, color: color, size: 24),
-    );
   }
 
   String _getTypeLabel(String type) {
@@ -108,4 +124,10 @@ class AlertCard extends StatelessWidget {
         return type;
     }
   }
+}
+
+class _SeverityConfig {
+  const _SeverityConfig({required this.color, required this.icon});
+  final Color color;
+  final IconData icon;
 }

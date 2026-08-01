@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/core/utils/validators.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 
 class AddServerScreen extends ConsumerStatefulWidget {
   const AddServerScreen({super.key});
@@ -37,98 +38,172 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
         title: const Text('Add Server'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Instructions
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+              // Instructions card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                      Theme.of(context).colorScheme.primary.withOpacity(0.03),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
                           Text(
                             'How to get started',
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Run "qwe1-agent --enroll" on your server to get a token.',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: context.onSurfaceMuted,
+                                ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '1. Install the agent on your server\n'
-                        '2. Run "qwe1-agent enroll" to get a token\n'
-                        '3. Scan the QR code or paste the token below',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // Server name
+              Text(
+                'Server Name',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Server Name',
                   hintText: 'e.g., my-server',
+                  prefixIcon: Icon(Icons.dns_rounded, size: 20),
                 ),
                 validator: Validators.validateServerName,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Agent URL
+              Text(
+                'Agent URL',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _urlController,
                 decoration: const InputDecoration(
-                  labelText: 'Agent URL',
-                  hintText: 'https://192.168.1.100:9443',
+                  hintText: 'http://192.168.1.100:9443',
+                  prefixIcon: Icon(Icons.link_rounded, size: 20),
                 ),
                 keyboardType: TextInputType.url,
                 validator: Validators.validateUrl,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Enrollment token
+              Text(
+                'Enrollment Token',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _tokenController,
                 decoration: const InputDecoration(
-                  labelText: 'Enrollment Token',
-                  hintText: 'qwe1-XXXXXXXXXXXX',
+                  hintText: 'Paste token from qwe1-agent --enroll',
+                  prefixIcon: Icon(Icons.vpn_key_rounded, size: 20),
                 ),
                 validator: Validators.validateEnrollmentToken,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Group (optional)
+              Text(
+                'Group (optional)',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _groupController,
                 decoration: const InputDecoration(
-                  labelText: 'Group (optional)',
                   hintText: 'e.g., home, production',
+                  prefixIcon: Icon(Icons.folder_rounded, size: 20),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // Error message
               if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: context.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: context.danger.withOpacity(0.3),
                     ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: context.danger,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                        color: context.danger,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -139,7 +214,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Add Server'),
               ),

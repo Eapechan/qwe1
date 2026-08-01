@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/settings/settings_provider.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -14,67 +16,92 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Settings'),
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // Appearance section
+          // Appearance
           _buildSectionHeader(context, 'Appearance'),
-          _buildThemeSelector(context, ref, settings.themeMode),
+          _buildSettingsTile(
+            context,
+            icon: Icons.dark_mode_rounded,
+            title: 'Theme',
+            subtitle: _getThemeName(settings.themeMode),
+            onTap: () => _showThemeDialog(context, ref, settings.themeMode),
+          ),
+          const Divider(indent: 56, endIndent: 16),
 
-          // Security section
+          // Security
           _buildSectionHeader(context, 'Security'),
-          SwitchListTile(
-            title: const Text('Biometric Lock'),
-            subtitle: const Text('Require biometric authentication to open the app'),
+          _buildSwitchTile(
+            context,
+            icon: Icons.fingerprint_rounded,
+            title: 'Biometric Lock',
+            subtitle: 'Require biometric authentication to open the app',
             value: settings.biometricEnabled,
             onChanged: (value) {
               ref.read(settingsProvider.notifier).setBiometricEnabled(value);
             },
           ),
+          const Divider(indent: 56, endIndent: 16),
 
-          // Server defaults
+          // Server Defaults
           _buildSectionHeader(context, 'Server Defaults'),
-          SwitchListTile(
-            title: const Text('Read-only Mode'),
-            subtitle: const Text('Default to read-only mode for new servers'),
+          _buildSwitchTile(
+            context,
+            icon: Icons.lock_rounded,
+            title: 'Read-only Mode',
+            subtitle: 'New servers default to read-only mode',
             value: settings.readOnlyMode,
             onChanged: (value) {
               ref.read(settingsProvider.notifier).setReadOnlyMode(value);
             },
           ),
+          const Divider(indent: 56, endIndent: 16),
 
-          // Data section
+          // Data
           _buildSectionHeader(context, 'Data'),
-          ListTile(
-            title: const Text('Clear Cache'),
-            subtitle: const Text('Remove all cached metrics and container snapshots'),
-            onTap: () => _showClearCacheDialog(context),
+          _buildSettingsTile(
+            context,
+            icon: Icons.cleaning_services_rounded,
+            title: 'Clear Cache',
+            subtitle: 'Clear cached data and temporary files',
+            onTap: () => _showClearCacheDialog(context, ref),
           ),
-          ListTile(
-            title: const Text('Export Server List'),
-            subtitle: const Text('Export server configurations (without tokens)'),
+          _buildSettingsTile(
+            context,
+            icon: Icons.upload_rounded,
+            title: 'Export Server List',
+            subtitle: 'Export your server configurations',
             onTap: () {
               // TODO: Implement export
             },
           ),
+          const Divider(indent: 56, endIndent: 16),
 
-          // About section
+          // About
           _buildSectionHeader(context, 'About'),
-          const ListTile(
-            title: Text('Version'),
-            subtitle: Text('1.0.0'),
+          _buildSettingsTile(
+            context,
+            icon: Icons.info_outline_rounded,
+            title: 'Version',
+            subtitle: '1.0.0',
           ),
-          ListTile(
-            title: const Text('Source Code'),
-            subtitle: const Text('View on GitHub'),
-            onTap: () {
-              // TODO: Launch GitHub URL
+          _buildSettingsTile(
+            context,
+            icon: Icons.code_rounded,
+            title: 'Source Code',
+            subtitle: 'View on GitHub',
+            onTap: () async {
+              final url = Uri.parse('https://github.com/qwe1/qwe1');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
             },
           ),
-          ListTile(
-            title: const Text('License'),
-            subtitle: const Text('AGPL-3.0-or-later'),
-            onTap: () {
-              // TODO: Show license
-            },
+          _buildSettingsTile(
+            context,
+            icon: Icons.gavel_rounded,
+            title: 'License',
+            subtitle: 'AGPL-3.0-or-later',
           ),
         ],
       ),
@@ -83,52 +110,60 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
       ),
     );
   }
 
-  Widget _buildThemeSelector(BuildContext context, WidgetRef ref, ThemeMode currentMode) {
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+  }) {
     return ListTile(
-      title: const Text('Theme'),
-      subtitle: Text(_getThemeModeLabel(currentMode)),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) => SimpleDialog(
-            title: const Text('Select Theme'),
-            children: ThemeMode.values.map((mode) {
-              return SimpleDialogOption(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ref.read(settingsProvider.notifier).setThemeMode(mode);
-                },
-                child: Row(
-                  children: [
-                    Icon(
-                      currentMode == mode ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      color: currentMode == mode ? Theme.of(context).colorScheme.primary : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(_getThemeModeLabel(mode)),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      },
+      leading: Icon(icon, color: context.onSurfaceMuted),
+      title: Text(title),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: context.onSurfaceMuted),
+      ),
+      trailing: onTap != null
+          ? Icon(Icons.chevron_right_rounded, color: context.onSurfaceMuted)
+          : null,
+      onTap: onTap,
     );
   }
 
-  String _getThemeModeLabel(ThemeMode mode) {
+  Widget _buildSwitchTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      secondary: Icon(icon, color: context.onSurfaceMuted),
+      title: Text(title),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: context.onSurfaceMuted),
+      ),
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+
+  String _getThemeName(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
         return 'Light';
@@ -139,15 +174,46 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showClearCacheDialog(BuildContext context) {
+  void _showThemeDialog(BuildContext context, WidgetRef ref, ThemeMode currentMode) {
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Theme'),
+        children: [
+          _buildThemeOption(context, ref, 'Light', ThemeMode.light, currentMode),
+          _buildThemeOption(context, ref, 'Dark', ThemeMode.dark, currentMode),
+          _buildThemeOption(context, ref, 'System Default', ThemeMode.system, currentMode),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeOption(
+    BuildContext context,
+    WidgetRef ref,
+    String title,
+    ThemeMode mode,
+    ThemeMode currentMode,
+  ) {
+    return RadioListTile<ThemeMode>(
+      title: Text(title),
+      value: mode,
+      groupValue: currentMode,
+      onChanged: (value) {
+        if (value != null) {
+          ref.read(settingsProvider.notifier).setThemeMode(value);
+          Navigator.pop(context);
+        }
+      },
+    );
+  }
+
+  void _showClearCacheDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear Cache'),
-        content: const Text(
-          'This will remove all cached metrics and container snapshots. '
-          'Server configurations will not be affected.',
-        ),
+        content: const Text('This will clear cached data and temporary files. Server configurations will not be affected.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -155,13 +221,13 @@ class SettingsScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
+              // TODO: Implement cache clearing
               Navigator.pop(context);
-              // TODO: Implement clear cache
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Cache cleared')),
               );
             },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: const Text('Clear'),
           ),
         ],
       ),

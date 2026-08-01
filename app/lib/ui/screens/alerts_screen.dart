@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/domain/entities/alert.dart';
 import 'package:qwe1/state/alerts/alert_provider.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/alert_card.dart';
 import 'package:qwe1/ui/widgets/empty_state.dart';
 
@@ -15,7 +16,7 @@ class AlertsScreen extends ConsumerStatefulWidget {
 }
 
 class _AlertsScreenState extends ConsumerState<AlertsScreen> {
-  String _severityFilter = 'all';
+  AlertSeverity? _severityFilter;
   bool _showAcked = true;
 
   @override
@@ -33,8 +34,26 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
               });
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'all', child: Text('Show All')),
-              const PopupMenuItem(value: 'unacked', child: Text('Unacknowledged Only')),
+              PopupMenuItem(
+                value: 'all',
+                child: Row(
+                  children: [
+                    if (_showAcked) Icon(Icons.check_rounded, size: 16, color: context.primary),
+                    if (_showAcked) const SizedBox(width: 8),
+                    const Text('Show All'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'unacked',
+                child: Row(
+                  children: [
+                    if (!_showAcked) Icon(Icons.check_rounded, size: 16, color: context.primary),
+                    if (!_showAcked) const SizedBox(width: 8),
+                    const Text('Unacknowledged Only'),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -43,16 +62,16 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         children: [
           // Filter chips
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                _buildFilterChip('All', 'all'),
+                _buildFilterChip('All', null),
                 const SizedBox(width: 8),
-                _buildFilterChip('Critical', 'critical'),
+                _buildFilterChip('Critical', AlertSeverity.critical),
                 const SizedBox(width: 8),
-                _buildFilterChip('Warning', 'warning'),
+                _buildFilterChip('Warning', AlertSeverity.warning),
                 const SizedBox(width: 8),
-                _buildFilterChip('Info', 'info'),
+                _buildFilterChip('Info', AlertSeverity.info),
               ],
             ),
           ),
@@ -61,39 +80,41 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           Expanded(
             child: alertsAsync.when(
               data: (alerts) {
-                final filtered = alerts.where((alert) {
-                  final matchesSeverity = _severityFilter == 'all' ||
-                      alert.severity.name == _severityFilter;
-
-                  final matchesAcked = _showAcked || !alert.acked;
-
+                var filtered = alerts.where((a) {
+                  final matchesSeverity = _severityFilter == null || a.severity == _severityFilter;
+                  final matchesAcked = _showAcked || !a.acked;
                   return matchesSeverity && matchesAcked;
                 }).toList();
 
                 if (filtered.isEmpty) {
                   return EmptyState(
-                    icon: Icons.notifications_off,
+                    icon: Icons.notifications_rounded,
                     title: 'No alerts',
-                    message: _severityFilter == 'all'
-                        ? 'All quiet. We\'ll alert you when something needs attention.'
-                        : 'No $_severityFilter alerts',
+                    message: _severityFilter == null
+                        ? 'All clear! No alerts at this time.'
+                        : 'No ${_severityFilter!.name} alerts',
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final alert = filtered[index];
-                    return AlertCard(
-                      alert: alert,
-                      onAcknowledge: () {
-                        ref
-                            .read(alertListProvider(widget.serverId).notifier)
-                            .acknowledgeAlert(alert.id);
-                      },
-                    );
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(alertListProvider(widget.serverId));
                   },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final alert = filtered[index];
+                      return AlertCard(
+                        alert: alert,
+                        onAcknowledge: alert.acked
+                            ? null
+                            : () => ref
+                                .read(alertListProvider(widget.serverId).notifier)
+                                .acknowledgeAlert(alert.id),
+                      );
+                    },
+                  ),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -101,7 +122,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    Icon(Icons.error_outline_rounded, size: 48, color: context.danger),
                     const SizedBox(height: 16),
                     Text('Error: $error'),
                   ],
@@ -114,16 +135,20 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _severityFilter == value;
+  Widget _buildFilterChip(String label, AlertSeverity? severity) {
+    final isSelected = _severityFilter == severity;
     return FilterChip(
       label: Text(label),
       selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _severityFilter = value;
-        });
-      },
+      onSelected: (selected) => setState(() => _severityFilter = severity),
+      selectedColor: context.primary,
+      checkmarkColor: context.onPrimary,
+      labelStyle: TextStyle(
+        color: isSelected
+            ? context.onPrimary
+            : context.onSurface,
+        fontWeight: FontWeight.w500,
+      ),
     );
   }
 }

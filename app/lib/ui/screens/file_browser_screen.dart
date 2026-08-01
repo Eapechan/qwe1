@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qwe1/domain/entities/file_item.dart';
 import 'package:qwe1/state/files/file_provider.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/widgets/empty_state.dart';
 
 class FileBrowserScreen extends ConsumerStatefulWidget {
-  const FileBrowserScreen({
-    super.key,
-    required this.serverId,
-    this.initialPath = '/',
-  });
+  const FileBrowserScreen({super.key, required this.serverId, this.initialPath = '/'});
 
   final String serverId;
   final String initialPath;
@@ -28,61 +25,48 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filesAsync = ref.watch(
-      fileListProvider((serverId: widget.serverId, path: _currentPath)),
-    );
+    final filesAsync = ref.watch(fileListProvider((serverId: widget.serverId, path: _currentPath)));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentPath),
+        title: Text(_currentPath.split('/').last.isEmpty ? 'Files' : _currentPath.split('/').last),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(
-                fileListProvider((serverId: widget.serverId, path: _currentPath)),
-              );
-            },
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(fileListProvider((serverId: widget.serverId, path: _currentPath))),
           ),
           IconButton(
-            icon: const Icon(Icons.create_new_folder),
-            onPressed: () => _showCreateDialog(context),
+            icon: const Icon(Icons.create_new_folder_rounded),
+            onPressed: _showCreateDialog,
           ),
         ],
       ),
       body: Column(
         children: [
-          // Breadcrumb path
-          _buildBreadcrumb(),
-
+          // Breadcrumb
+          _buildBreadcrumb(context),
           // File list
           Expanded(
             child: filesAsync.when(
-              data: (files) {
-                if (files.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.folder_open, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('This folder is empty'),
-                      ],
-                    ),
+              data: (items) {
+                if (items.isEmpty) {
+                  return EmptyState(
+                    icon: Icons.folder_rounded,
+                    title: 'Empty folder',
+                    message: 'This folder is empty',
                   );
                 }
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(
-                      fileListProvider((serverId: widget.serverId, path: _currentPath)),
-                    );
+                    ref.invalidate(fileListProvider((serverId: widget.serverId, path: _currentPath)));
                   },
                   child: ListView.builder(
-                    itemCount: files.length,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: items.length,
                     itemBuilder: (context, index) {
-                      final file = files[index];
-                      return _buildFileTile(file);
+                      final item = items[index];
+                      return _buildFileTile(context, item);
                     },
                   ),
                 );
@@ -92,7 +76,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    Icon(Icons.error_outline_rounded, size: 48, color: context.danger),
                     const SizedBox(height: 16),
                     Text('Error: $error'),
                   ],
@@ -105,42 +89,29 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     );
   }
 
-  Widget _buildBreadcrumb() {
+  Widget _buildBreadcrumb(BuildContext context) {
     final parts = _currentPath.split('/').where((p) => p.isNotEmpty).toList();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
+          bottom: BorderSide(color: context.border),
         ),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            InkWell(
-              onTap: () => _navigateTo('/'),
-              child: const Icon(Icons.home, size: 16),
-            ),
+            _buildBreadcrumbItem(context, '/', -1),
             for (int i = 0; i < parts.length; i++) ...[
-              const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-              InkWell(
-                onTap: () {
-                  final path = '/' + parts.sublist(0, i + 1).join('/');
-                  _navigateTo(path);
-                },
-                child: Text(
-                  parts[i],
-                  style: TextStyle(
-                    color: i == parts.length - 1
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
-                    fontWeight: i == parts.length - 1 ? FontWeight.bold : null,
-                  ),
-                ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: context.onSurfaceMuted,
               ),
+              _buildBreadcrumbItem(context, parts[i], i),
             ],
           ],
         ),
@@ -148,38 +119,128 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     );
   }
 
-  Widget _buildFileTile(FileItem file) {
-    final icon = file.isDir ? Icons.folder : _getFileIcon(file.name);
+  Widget _buildBreadcrumbItem(BuildContext context, String label, int index) {
+    final isLast = index == _currentPath.split('/').length - 2;
 
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: file.isDir ? Colors.amber : Theme.of(context).colorScheme.primary,
+    return InkWell(
+      onTap: isLast
+          ? null
+          : () {
+              final newPath = index == -1
+                  ? '/'
+                  : '/' + _currentPath.split('/').where((p) => p.isNotEmpty).take(index + 1).join('/');
+              setState(() => _currentPath = newPath);
+            },
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: isLast ? FontWeight.w600 : FontWeight.w500,
+                color: isLast
+                    ? Theme.of(context).colorScheme.primary
+                    : context.onSurfaceMuted,
+              ),
+        ),
       ),
-      title: Text(file.name),
-      subtitle: file.isDir ? null : Text(_formatSize(file.size)),
-      trailing: PopupMenuButton<String>(
-        onSelected: (action) => _handleFileAction(action, file),
-        itemBuilder: (context) => [
-          if (!file.isDir) ...[
-            const PopupMenuItem(value: 'download', child: Text('Download')),
-            const PopupMenuItem(value: 'preview', child: Text('Preview')),
-          ],
-          const PopupMenuItem(value: 'rename', child: Text('Rename')),
-          const PopupMenuItem(
-            value: 'delete',
-            child: Text('Delete', style: TextStyle(color: Colors.red)),
+    );
+  }
+
+  Widget _buildFileTile(BuildContext context, item) {
+    final isDir = item.isDir;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: InkWell(
+        onTap: isDir
+            ? () => setState(() => _currentPath = item.path)
+            : () => _showFileActions(context, item),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isDir
+                      ? context.warning.withOpacity(0.12)
+                      : Theme.of(context).colorScheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isDir ? Icons.folder_rounded : _getFileIcon(item.name),
+                  color: isDir
+                      ? context.warning
+                    : context.onSurfaceMuted,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (!isDir && item.size != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatSize(item.size!),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.onSurfaceMuted,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!isDir)
+                PopupMenuButton<String>(
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'rename',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_rounded, size: 20),
+                          SizedBox(width: 8),
+                          Text('Rename'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_rounded, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'rename') _showRenameDialog(context, item);
+                    if (value == 'delete') _showDeleteDialog(context, item);
+                  },
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                color: context.onSurfaceMuted,
+                    size: 20,
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
-      onTap: () {
-        if (file.isDir) {
-          final newPath = _currentPath.endsWith('/')
-              ? '$_currentPath${file.name}'
-              : '$_currentPath/${file.name}';
-          _navigateTo(newPath);
-        }
-      },
     );
   }
 
@@ -188,24 +249,27 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     switch (ext) {
       case 'txt':
       case 'md':
-        return Icons.description;
+        return Icons.description_rounded;
       case 'jpg':
       case 'jpeg':
       case 'png':
       case 'gif':
-        return Icons.image;
+        return Icons.image_rounded;
       case 'pdf':
-        return Icons.picture_as_pdf;
+        return Icons.picture_as_pdf_rounded;
       case 'zip':
       case 'tar':
       case 'gz':
-        return Icons.archive;
+        return Icons.archive_rounded;
       case 'json':
       case 'yaml':
       case 'yml':
-        return Icons.code;
+        return Icons.code_rounded;
+      case 'sh':
+      case 'bash':
+        return Icons.terminal_rounded;
       default:
-        return Icons.insert_drive_file;
+        return Icons.insert_drive_file_rounded;
     }
   }
 
@@ -218,87 +282,45 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  void _navigateTo(String path) {
-    setState(() {
-      _currentPath = path;
-    });
+  void _showFileActions(BuildContext context, item) {
+    // TODO: Implement file preview
   }
 
-  void _showCreateDialog(BuildContext context) {
+  void _showCreateDialog() {
     final controller = TextEditingController();
-    bool isFolder = true;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Create New'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  hintText: 'Name',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isFolder,
-                    onChanged: (value) {
-                      setState(() {
-                        isFolder = value ?? true;
-                      });
-                    },
-                  ),
-                  const Text('Folder'),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (isFolder) {
-                  ref
-                      .read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier)
-                      .createDirectory(controller.text);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('New Folder'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Folder name'),
+          autofocus: true,
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                ref.read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier).createDirectory(
+                      controller.text,
+                    );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
       ),
     );
   }
 
-  void _handleFileAction(String action, FileItem file) {
-    switch (action) {
-      case 'download':
-        // TODO: Implement download
-        break;
-      case 'preview':
-        // TODO: Implement preview
-        break;
-      case 'rename':
-        _showRenameDialog(file);
-        break;
-      case 'delete':
-        _showDeleteDialog(file);
-        break;
-    }
-  }
-
-  void _showRenameDialog(FileItem file) {
-    final controller = TextEditingController(text: file.name);
+  void _showRenameDialog(BuildContext context, item) {
+    final controller = TextEditingController(text: item.name);
 
     showDialog(
       context: context,
@@ -307,6 +329,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(hintText: 'New name'),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -315,10 +338,13 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              ref
-                  .read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier)
-                  .renameItem(file.name, controller.text);
+              if (controller.text.isNotEmpty) {
+                ref.read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier).renameItem(
+                      item.name,
+                      controller.text,
+                    );
+                Navigator.pop(context);
+              }
             },
             child: const Text('Rename'),
           ),
@@ -327,12 +353,12 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     );
   }
 
-  void _showDeleteDialog(FileItem file) {
+  void _showDeleteDialog(BuildContext context, item) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete'),
-        content: Text('Are you sure you want to delete "${file.name}"?'),
+        title: const Text('Delete File'),
+        content: Text('Delete "${item.name}"? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -340,12 +366,15 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
           ),
           TextButton(
             onPressed: () {
+              ref.read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier).deleteItem(
+                    item.name,
+                  );
               Navigator.pop(context);
-              ref
-                  .read(fileListProvider((serverId: widget.serverId, path: _currentPath)).notifier)
-                  .deleteItem(file.name);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: context.danger),
+            ),
           ),
         ],
       ),
