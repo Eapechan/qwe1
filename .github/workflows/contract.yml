@@ -1,0 +1,26 @@
+name: Contract
+
+on:
+  pull_request:
+    paths: ["api/**", "agent/**", "app/**"]
+  push:
+    branches: [main]
+    paths: ["api/**"]
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npx @redocly/cli lint api/openapi.yaml
+
+  # Contract tests will be wired here during M0:
+  # - agent handlers validated against the OpenAPI spec (generated assertions)
+  # - app client mocks validated against the OpenAPI spec

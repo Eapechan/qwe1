@@ -1,0 +1,17 @@
+# Owner defaults
+* @qwe1/maintainers
+
+# API contract — high impact
+api/** @qwe1/maintainers
+
+# Security-critical agent code
+agent/internal/auth/** @qwe1/maintainers
+agent/internal/terminal/** @qwe1/maintainers
+agent/internal/files/** @qwe1/maintainers
+agent/internal/server/middleware/** @qwe1/maintainers
+
+# Security documentation
+docs/14-security-architecture.md @qwe1/maintainers
+
+# Docs
+docs/** @qwe1/maintainers

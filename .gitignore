@@ -1,0 +1,39 @@
+# Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# Flutter / fvm
+.fvm/
+.fvmrc
+
+# Go
+agent/bin/
+agent/coverage.out
+*.test
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# CI / local
+*.log
+.env
+.env.local
+
+# Release artifacts
+dist/
+release/
+*.tgz
+
+# Generated / temp
+coverage/
+.nyc_output/
+tmp/
