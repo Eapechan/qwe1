@@ -87,7 +87,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   color: context.danger,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Text(
                 'Something went wrong',
                 style: theme.textTheme.titleLarge?.copyWith(
@@ -95,10 +95,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Error loading servers',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: context.onSurfaceMuted,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: context.onSurfaceMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

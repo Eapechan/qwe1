@@ -24,23 +24,27 @@ class MetricsDto {
 class HostInfoDto {
   final String hostname;
   final int uptimeSeconds;
+  @JsonKey(name: 'load', defaultValue: [])
   final List<double> load;
   final CpuMetricsDto cpu;
   final MemoryMetricsDto memory;
+  @JsonKey(name: 'disk', defaultValue: [])
   final List<DiskMetricsDto> disk;
   final NetworkMetricsDto network;
-  final List<TempSensorDto> sensors;
+  @JsonKey(name: 'temp')
+  final TempInfoDto temp;
 
   HostInfoDto({
     required this.hostname,
     required this.uptimeSeconds,
-    this.load = const [],
+    List<double>? load,
     required this.cpu,
     required this.memory,
-    this.disk = const [],
+    List<DiskMetricsDto>? disk,
     required this.network,
-    this.sensors = const [],
-  });
+    required this.temp,
+  })  : load = load ?? [],
+        disk = disk ?? [];
 
   factory HostInfoDto.fromJson(Map<String, dynamic> json) => _$HostInfoDtoFromJson(json);
 
@@ -54,8 +58,20 @@ class HostInfoDto {
         memory: memory.toEntity(),
         disk: disk.map((e) => e.toEntity()).toList(),
         network: network.toEntity(),
-        sensors: sensors.map((e) => e.toEntity()).toList(),
+        sensors: temp.sensors,
       );
+}
+
+@JsonSerializable()
+class TempInfoDto {
+  @JsonKey(name: 'sensors', defaultValue: [])
+  final List<TempSensorDto> sensors;
+
+  TempInfoDto({List<TempSensorDto>? sensors}) : sensors = sensors ?? [];
+
+  factory TempInfoDto.fromJson(Map<String, dynamic> json) => _$TempInfoDtoFromJson(json);
+
+  Map<String, dynamic> toJson() => _$TempInfoDtoToJson(this);
 }
 
 @JsonSerializable()
