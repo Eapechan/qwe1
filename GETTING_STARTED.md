@@ -156,7 +156,7 @@ Output:
   qwe1 Agent Enrollment Token
 =========================================
   Server:          my-server
-  Enrollment Token: S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU
+  Enrollment Token: qwe1-S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU
   Expires:         2027-08-01 (365 days)
 =========================================
 
@@ -261,7 +261,7 @@ Launch qwe1 on your phone. You'll see the onboarding screens — tap through or 
 2. Fill in:
    - **Server Name**: anything (e.g., "My Server")
    - **Agent URL**: `http://YOUR_SERVER_IP:9443`
-   - **Enrollment Token**: the token from `qwe1-agent --enroll` (e.g., `S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU`)
+   - **Enrollment Token**: the token from `qwe1-agent --enroll` (e.g., `qwe1-S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU`)
    - **Group** (optional): e.g., "home"
 3. Tap **Add Server**
 
@@ -340,6 +340,7 @@ export JAVA_HOME=~/java/current
 
 ### Enrollment fails in the app
 
+- **"Invalid token format"**: the token must start with `qwe1-`. The `--enroll` command now generates tokens in this format (e.g. `qwe1-...`). Make sure you paste the full token including the `qwe1-` prefix.
 - Verify the enrollment token hash matches what's in `my-server.auth.json`
 - Check the token hasn't expired
 - Check the token hasn't been used already (set `"used": false`)

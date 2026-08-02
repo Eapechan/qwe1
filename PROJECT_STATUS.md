@@ -114,9 +114,11 @@ cd agent && go build -o bin/qwe1-agent ./cmd/qwe1-agent
 | `./qwe1-agent --enroll` | **WORKING** — generates token, stores hash in auth.json |
 | `./qwe1-agent --enroll --enroll-days 30` | **WORKING** — custom expiry |
 
+> **Resolved (2026-08-02):** Enrollment tokens now include the `qwe1-` prefix (e.g. `qwe1-<base64url>`), matching the Flutter app's validation. Previously the generated token lacked the prefix, which caused the app to reject it with "Invalid token format". See `agent/cmd/qwe1-agent/main.go` (`generateToken`).
+
 ### Auth Flow
 
-1. `--enroll` generates random token, SHA-256 hashes it, stores hash in `<serverName>.auth.json` with expiry
+1. `--enroll` generates random token prefixed with `qwe1-` (e.g. `qwe1-<base64url>`), SHA-256 hashes it, stores hash in `<serverName>.auth.json` with expiry
 2. App sends token to `POST /auth/enroll`
 3. Agent hashes received token, looks up hash in store, validates (not expired, not used)
 4. Marks enrollment as used (one-time)
