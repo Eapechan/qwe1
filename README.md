@@ -5,9 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/qwe1/qwe1/releases"><img alt="Release" src="https://img.shields.io/github/v/release/qwe1/qwe1"></a>
+  <a href="https://github.com/Eapechan/qwe1/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Eapechan/qwe1"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
-  <a href="https://github.com/qwe1/qwe1/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/qwe1/qwe1/ci-agent.yml"></a>
 </p>
 
 ---
@@ -18,24 +17,35 @@
 
 ## Highlights
 
-- 📊 Live health monitoring — CPU, RAM, disk, network, temperature, uptime
-- 🐳 Docker management — list, inspect, start/stop/restart, stream logs
-- ⌨️ Interactive terminal — real PTY sessions from your phone
-- 📁 File browser — navigate, preview, and transfer files on the server
-- 🔔 Alerts — threshold-based, with history and optional webhook/ntfy forwarding
-- 🔒 Security by default — TLS 1.3, certificate pinning, short-lived tokens, biometric lock
-- 📱 Multiple servers, one app
-- 🏠 Zero cloud — every byte travels only between your phone and your own servers
+- Live health monitoring — CPU, RAM, disk, network, temperature, uptime
+- Docker management — list, inspect, start/stop/restart, stream logs
+- Interactive terminal — real PTY sessions from your phone
+- File browser — navigate, upload, and manage files on the server
+- Alerts — threshold-based with history and acknowledgement
+- Security — TLS 1.3, certificate pinning, short-lived tokens, biometric lock
+- Multiple servers, one app
+- Zero cloud — every byte travels only between your phone and your own servers
 
 ## Quickstart
 
-Install the agent on your Linux server (Debian/Ubuntu, Fedora, Alpine, or any distro with a shell):
+### 1. Install the agent
 
-```sh
-curl -fsSL https://get.qwe1.sh | sh
+Build and run on your Linux server:
+
+```bash
+# Build for Linux amd64
+GOOS=linux GOARCH=amd64 go build -o qwe1-agent ./cmd/qwe1-agent
+
+# Transfer to server
+scp qwe1-agent user@YOUR_SERVER_IP:~/qwe1-agent
+
+# SSH in and run
+ssh user@YOUR_SERVER_IP
+chmod +x ~/qwe1-agent
+./qwe1-agent
 ```
 
-or via Docker:
+Or via Docker:
 
 ```sh
 docker run -d --name qwe1-agent --restart unless-stopped \
@@ -43,35 +53,61 @@ docker run -d --name qwe1-agent --restart unless-stopped \
   -p 9443:9443 qwe1/agent
 ```
 
-Then generate a pairing code:
+### 2. Generate a pairing token
 
-```sh
-qwe1-agent enroll
+```bash
+./qwe1-agent --enroll
 ```
 
-Install the app from the [App Store](#), [Play Store](#), or [F-Droid](#), scan the QR code, confirm the fingerprint, and you're done — **under 10 minutes**.
+This shows an enrollment token you'll enter in the app.
+
+### 3. Install the app
+
+Build the APK or install from releases, then enter your server URL and the enrollment token.
+
+See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
+
+## Architecture
+
+```
+Flutter App (phone) <-- HTTP/WebSocket --> Go Agent (your server) --> Docker API
+```
+
+| Component | Stack | Location |
+|-----------|-------|----------|
+| Mobile app | Flutter, Riverpod, Material 3 | `app/` |
+| Server agent | Go, net/http, WebSocket | `agent/` |
+
+## What Works
+
+| Feature | Status |
+|---------|--------|
+| Host metrics (CPU/RAM/Disk) | Working |
+| Docker management | Working |
+| File browser (list/read/write/upload) | Working |
+| Alerts engine | Working |
+| Authentication (enroll/refresh/revoke) | Working |
+| Terminal (PTY sessions) | Backend working, UI partial |
+| Real-time metrics streaming | Backend working, UI partial |
 
 ## Documentation
 
-This repository is currently in the **planning phase** and contains the complete architecture and product documentation. Start with the [documentation index](docs/README.md).
-
 | Doc | What it answers |
 |-----|-----------------|
+| [Getting Started](GETTING_STARTED.md) | How to run everything end-to-end |
 | [Vision](docs/01-vision.md) | Why qwe1 exists |
-| [Market Research](docs/02-market-research.md) | The gap we fill |
-| [PRD](docs/03-prd.md) | Exactly what we build |
 | [Architecture](docs/09-architecture.md) | How it's built |
 | [API](docs/11-api-design.md) | The wire contract |
 | [Security](docs/14-security-architecture.md) | How we defend it |
-| [Roadmap](docs/17-roadmap.md) | When it ships |
+| [Roadmap](docs/17-roadmap.md) | What's next |
 
 ## Contributing
 
-We welcome contributors of every skill level. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started, and check the [good first issues](https://github.com/qwe1/qwe1/issues?q=is:issue+is:open+label:good-first-issue).
+We welcome contributors of every skill level. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-- 💬 Discussions for RFCs and questions
-- 🐞 [Bug reports](https://github.com/qwe1/qwe1/issues/new/choose)
-- 📝 Docs fixes are always appreciated
+- Discussions for RFCs and questions
+- [Bug reports](https://github.com/Eapechan/qwe1/issues/new)
+- Docs fixes are always appreciated
 
 ## Security
 
@@ -80,7 +116,3 @@ qwe1 is a remote-management tool — it is a high-value target. If you find a vu
 ## License
 
 [AGPL-3.0-or-later](LICENSE) — the code is a commons. If you offer qwe1 as a networked service, your modifications must be released to the community.
-
-## Status
-
-**Planning phase** — architecture and product documentation complete, implementation starting per the [roadmap](docs/17-roadmap.md). No stable release yet.

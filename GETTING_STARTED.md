@@ -142,47 +142,31 @@ Expected response:
 {"name":"my-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"terminal":true,"files":true,"tempSensors":true}}
 ```
 
-### Step 6: Create enrollment token (workaround)
+### Step 6: Generate enrollment token
 
-The `--enroll` command is not yet implemented. To test enrollment, manually create an entry in the auth store on your server:
-
-```bash
-# On the server, stop the agent temporarily (Ctrl+C), then:
-
-# Pick a token you'll use in the app, e.g. qwe1-test-token-12345678
-# Compute its SHA-256 hash:
-echo -n "qwe1-test-token-12345678" | sha256sum
-```
-
-Copy the hash output (64 hex characters), then create the auth store:
+Run the enrollment command on your server:
 
 ```bash
-# Replace THE_HASH below with the actual sha256 output (no newline)
-cat > ~/my-server.auth.json << 'EOF'
-{
-  "enroll": [
-    {
-      "hash": "THE_HASH",
-      "createdAt": "2026-08-01T00:00:00Z",
-      "expiresAt": "2027-01-01T00:00:00Z",
-      "used": false
-    }
-  ],
-  "devices": {},
-  "refresh": {},
-  "lockouts": {},
-  "attempts": {}
-}
-EOF
+./qwe1-agent --enroll --config ~/config.yaml
 ```
 
-Restart the agent:
+Output:
+```
+=========================================
+  qwe1 Agent Enrollment Token
+=========================================
+  Server:          my-server
+  Enrollment Token: S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU
+  Expires:         2027-08-01 (365 days)
+=========================================
 
-```bash
-./qwe1-agent --config ~/config.yaml
+Enter this token in the qwe1 app to pair
+with this server.
 ```
 
-You now have a valid enrollment token: `qwe1-test-token-12345678`
+Copy the **Enrollment Token** — you'll paste it into the app.
+
+> **Note**: The token is a one-time-use code. Once a device enrolls with it, the token is marked as used. Generate a new one for each device.
 
 ---
 
@@ -277,7 +261,7 @@ Launch qwe1 on your phone. You'll see the onboarding screens — tap through or 
 2. Fill in:
    - **Server Name**: anything (e.g., "My Server")
    - **Agent URL**: `http://YOUR_SERVER_IP:9443`
-   - **Enrollment Token**: `qwe1-test-token-12345678` (or whatever you set up in Part 1, Step 6)
+   - **Enrollment Token**: the token from `qwe1-agent --enroll` (e.g., `S78g4yz7F014MGLJCohsq2nY14KrhreDdp1Kv4YuOcU`)
    - **Group** (optional): e.g., "home"
 3. Tap **Add Server**
 
@@ -327,7 +311,6 @@ The dashboard should show your server with live status. Tap it to see:
 
 ### Not Yet Working
 
-- `--enroll` CLI command (use manual workaround above)
 - Container logs viewer (backend streams, no UI screen)
 - Alert threshold editing (backend API exists, no UI)
 - Offline queue (database table exists, no logic)
@@ -377,13 +360,12 @@ This happens when the agent runs with TLS and the app doesn't trust the self-sig
 
 To make this fully functional, implement in this order:
 
-1. **`--enroll` CLI command** — Generate real enrollment tokens from the agent
-2. **Terminal input wiring** — Connect Flutter terminal UI to WebSocket PTY streams
-3. **Metrics streaming** — Wire `serverMetricsProvider` to WebSocket for live charts
-4. **Container logs screen** — New screen showing streaming logs
-5. **File download/preview** — Add download action and text/image preview
-6. **TLS certificate generation** — Auto-generate self-signed certs on first run
-7. **Biometric lock** — Enforce fingerprint/PIN on app launch
+1. **Terminal input wiring** — Connect Flutter terminal UI to WebSocket PTY streams
+2. **Metrics streaming** — Wire `serverMetricsProvider` to WebSocket for live charts
+3. **Container logs screen** — New screen showing streaming logs
+4. **File download/preview** — Add download action and text/image preview
+5. **TLS certificate generation** — Auto-generate self-signed certs on first run
+6. **Biometric lock** — Enforce fingerprint/PIN on app launch
 
 ---
 
@@ -398,6 +380,9 @@ cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=amd64 go build -o bin/qwe1-agent-
 
 # Go agent (cross-compile for Linux arm64)
 cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
+
+# Generate enrollment token
+./qwe1-agent --enroll --config ~/config.yaml
 
 # Flutter APK
 export JAVA_HOME=~/java/current
