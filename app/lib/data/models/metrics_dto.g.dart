@@ -23,19 +23,16 @@ HostInfoDto _$HostInfoDtoFromJson(Map<String, dynamic> json) => HostInfoDto(
       load: (json['load'] as List<dynamic>?)
               ?.map((e) => (e as num).toDouble())
               .toList() ??
-          const [],
+          [],
       cpu: CpuMetricsDto.fromJson(json['cpu'] as Map<String, dynamic>),
       memory: MemoryMetricsDto.fromJson(json['memory'] as Map<String, dynamic>),
       disk: (json['disk'] as List<dynamic>?)
               ?.map((e) => DiskMetricsDto.fromJson(e as Map<String, dynamic>))
               .toList() ??
-          const [],
+          [],
       network:
           NetworkMetricsDto.fromJson(json['network'] as Map<String, dynamic>),
-      sensors: (json['sensors'] as List<dynamic>?)
-              ?.map((e) => TempSensorDto.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
+      temp: TempInfoDto.fromJson(json['temp'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$HostInfoDtoToJson(HostInfoDto instance) =>
@@ -47,6 +44,18 @@ Map<String, dynamic> _$HostInfoDtoToJson(HostInfoDto instance) =>
       'memory': instance.memory,
       'disk': instance.disk,
       'network': instance.network,
+      'temp': instance.temp,
+    };
+
+TempInfoDto _$TempInfoDtoFromJson(Map<String, dynamic> json) => TempInfoDto(
+      sensors: (json['sensors'] as List<dynamic>?)
+              ?.map((e) => TempSensorDto.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+
+Map<String, dynamic> _$TempInfoDtoToJson(TempInfoDto instance) =>
+    <String, dynamic>{
       'sensors': instance.sensors,
     };
 

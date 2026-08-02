@@ -7,7 +7,7 @@ class SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme._lightColors;
+    final colors = AppTheme.lightColors;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(

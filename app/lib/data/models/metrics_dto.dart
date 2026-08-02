@@ -58,7 +58,7 @@ class HostInfoDto {
         memory: memory.toEntity(),
         disk: disk.map((e) => e.toEntity()).toList(),
         network: network.toEntity(),
-        sensors: temp.sensors,
+        sensors: temp.sensors.map((e) => e.toEntity()).toList(),
       );
 }
 

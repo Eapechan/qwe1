@@ -25,11 +25,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: const DashboardScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return child
-                .animate(
-                  curves: Curves.easeOutCubic,
-                )
-                .fadeIn(duration: 200.ms)
-                .buildTransitionalChild(animation);
+                .animate()
+                .fadeIn(duration: 200.ms, curve: Curves.easeOutCubic);
             },
           );
         },

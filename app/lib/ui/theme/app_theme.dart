@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  static const _lightColors = _ColorTokens(
+  static const lightColors = _ColorTokens(
     background: Color(0xFFF8F9FA),
     surface: Color(0xFFFFFFFF),
     surfaceVariant: Color(0xFFF1F3F5),
@@ -31,7 +31,7 @@ class AppTheme {
     gradientEnd: Color(0xFF7C3AED),
   );
 
-  static const _darkColors = _ColorTokens(
+  static const darkColors = _ColorTokens(
     background: Color(0xFF0F1117),
     surface: Color(0xFF1A1D27),
     surfaceVariant: Color(0xFF232733),
@@ -58,8 +58,8 @@ class AppTheme {
     gradientEnd: Color(0xFF8B5CF6),
   );
 
-  static ThemeData get lightTheme => _buildTheme(_lightColors, false);
-  static ThemeData get darkTheme => _buildTheme(_darkColors, true);
+  static ThemeData get lightTheme => _buildTheme(lightColors, false);
+  static ThemeData get darkTheme => _buildTheme(darkColors, true);
 
   static ThemeData _buildTheme(_ColorTokens c, bool isDark) {
     final colorScheme = ColorScheme(
@@ -78,26 +78,15 @@ class AppTheme {
       onSurfaceVariant: c.onSurfaceVariant,
       background: c.background,
       onBackground: c.onSurface,
-      surfaceContainerLow: c.surfaceContainerLow,
-      surfaceContainer: c.surfaceContainer,
-      surfaceContainerHighest: c.surfaceContainerHighest,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: c.background,
-      textTheme: GoogleFonts.inter(
-        Theme.of(() {
-          final l = TextTheme();
-          return isDark ? l.copyWith(
-            bodyLarge: GoogleFonts.inter(color: c.onSurface),
-            bodyMedium: GoogleFonts.inter(color: c.onSurfaceMuted),
-          ) : l.copyWith(
-            bodyLarge: GoogleFonts.inter(color: c.onSurface),
-            bodyMedium: GoogleFonts.inter(color: c.onSurfaceMuted),
-          );
-        })(),
+      textTheme: GoogleFonts.interTextTheme().copyWith(
+        bodyLarge: GoogleFonts.inter(color: c.onSurface),
+        bodyMedium: GoogleFonts.inter(color: c.onSurfaceMuted),
       ),
       fontFamily: GoogleFonts.inter().fontFamily,
       appBarTheme: AppBarTheme(
@@ -278,8 +267,8 @@ class _ColorTokens {
 
 extension AppColors on BuildContext {
   _ColorTokens get _tokens => Theme.of(this).brightness == Brightness.light
-      ? AppTheme._lightColors
-      : AppTheme._darkColors;
+      ? AppTheme.lightColors
+      : AppTheme.darkColors;
 
   Color get background => _tokens.background;
   Color get surface => _tokens.surface;

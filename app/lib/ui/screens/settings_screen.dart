@@ -188,8 +188,8 @@ class SettingsScreen extends ConsumerWidget {
           _buildThemeOption(context, ref, 'Dark', ThemeMode.dark, currentMode),
           _buildThemeOption(context, ref, 'System Default', ThemeMode.system, currentMode),
         ],
-      ),
-    ).animate().scale(begin: Offset(0.8, 1.1), end: Offset.one, duration: 150.ms);
+      ).animate().scale(begin: const Offset(0.8, 1.1), end: const Offset(1, 1), duration: 150.ms),
+    );
   }
 
   Widget _buildThemeOption(
@@ -225,21 +225,22 @@ class SettingsScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              // Clear SharedPreferences cache
               ref.read(settingsProvider.notifier).clearCache();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cache cleared successfully'),
+                SnackBar(
+                  content: Text('Cache cleared successfully')
+                      .animate()
+                      .fadeIn(duration: 150.ms),
                   behavior: SnackBarBehavior.floating,
                 ),
-              ).animate().fadeIn(duration: 150.ms),
+              );
             },
             child: const Text('Clear'),
           ),
         ],
-      ),
-    ).animate().scale(begin: Offset(0.9, 0.9), end: Offset.one, duration: 150.ms);
+      ).animate().scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 150.ms),
+    );
   }
 
   void _showExportDialog(BuildContext context) {
@@ -254,8 +255,8 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('OK'),
           ),
         ],
-      ),
-    ).animate().scale(begin: Offset(0.9, 0.9), end: Offset.one, duration: 150.ms);
+      ).animate().scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 150.ms),
+    );
   }
 
   void _launchUrl(BuildContext context) async {

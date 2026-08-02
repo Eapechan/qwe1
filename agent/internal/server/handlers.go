@@ -48,6 +48,10 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Reload the auth store from disk to pick up enrollment tokens
+	// added by `qwe1-agent --enroll` while the server was running.
+	_ = s.auth.Reload()
+
 	hash := auth.HashToken(req.EnrollmentToken)
 	enroll, ok := s.auth.EnrollByHash(hash)
 	if !ok || enroll.Used || time.Now().After(enroll.ExpiresAt) {

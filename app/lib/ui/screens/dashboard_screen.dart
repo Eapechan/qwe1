@@ -118,7 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/add-server'),
         child: const Icon(Icons.add_rounded),
-      ).animate(onEnter: 200.ms).scale(begin: Offset(0, 0), end: Offset.zero),
+      ).animate(delay: 200.ms).scale(begin: Offset(0, 0), end: Offset.zero),
     );
   }
 
@@ -171,8 +171,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 8),
           ],
         ),
-      ),
-    ).animate().slide(begin: Offset(0, 1), end: Offset.zero, duration: 200.ms);
+      ).animate().slide(begin: const Offset(0, 1), end: Offset.zero, duration: 200.ms),
+    );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, Server server) {

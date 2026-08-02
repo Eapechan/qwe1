@@ -93,10 +93,7 @@ class ServerCard extends StatelessWidget {
           ),
         ),
       ),
-    ).animate(
-      duration: 150.ms,
-      curve: Curves.easeInOut,
-    ).scale(
+    ).animate().scale(
       duration: 100.ms,
       curve: Curves.easeOut,
     );
