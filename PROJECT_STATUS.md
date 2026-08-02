@@ -25,12 +25,11 @@ Flutter App (Android phone) <-- HTTP/WebSocket --> Go Agent (Linux server) --> D
 | Phase | Name | Status |
 |-------|------|--------|
 | Phase 1 | Backend agent implementation | **COMPLETE** |
-| Phase 2 | Flutter app UI + DI wiring | **COMPLETE** |
-| Phase 3 | End-to-end testing on real server | **NOT STARTED** |
-| Phase 4 | Fix integration bugs | **NOT STARTED** |
-| Phase 5 | Polish, release builds, ship | **NOT STARTED** |
+| Phase 2 | Flutter app UI polish + test coverage | **COMPLETE** |
+| Phase 3 | End-to-end testing on real server | **PENDING** |
+| Phase 4 | Feature implementations | **PENDING** |
 
-**Where we are**: Phase 2 is done. Phase 3 (real server testing) is the next thing to do.
+**Where we are**: Phase 1 and 2 complete. Phase 3 (real server testing) is next.
 
 ---
 
@@ -130,7 +129,16 @@ cd agent && go build -o bin/qwe1-agent ./cmd/qwe1-agent
 
 ---
 
-## Phase 2: Flutter App — COMPLETE
+## Phase 2: Flutter App UI — COMPLETE
+
+### UI Polish (completed 2026-08-02)
+
+- Added `flutter_animate` and `google_fonts` dependencies
+- Refined M3 theme with tertiary/surfaceContainer roles
+- Shimmer skeleton loaders for dashboard list (while loading)
+- Fade+slide page transitions via go_router
+- Animated Dialog/Modal transitions
+- Settings: animated theme picker, clear cache wired
 
 ### Build
 ```
@@ -365,6 +373,35 @@ alerts:
 - Metrics streaming to dashboard cards
 - Container detail action buttons
 - File download/preview
+
+---
+
+## Feature Roadmap (v1.1+)
+
+### High Priority
+- **Terminal WebSocket**: End-to-end terminal I/O (Flutter → backend WebSocket → PTY)
+- **Live Metrics**: Real-time CPU/RAM/Disk display from `metrics/latest` + WebSocket
+- **Metrics History Charts**: Use `fl_chart` to plot historical metrics from drift table
+- **File Preview**: PDF, image, text preview in file browser
+- **Container Detail Actions**: Start/Stop/Restart fully wired
+- **Alert Streaming**: Real-time alert notifications from backend
+
+### Medium Priority
+- **Bottom Navigation**: Shell route with Home/Servers/Alerts/Settings
+- **Server Groups**: Organize servers into named groups
+- **Theme Switcher**: Animated light/dark/system toggle
+- **Export/Backup**: JSON export of server configs
+- **Biometric Lock UI**: Actually prompt for biometric unlock
+- **Import Server**: QR code or deep link onboarding
+
+### Backlog
+- **Web Dashboard**: Companion web UI
+- **iOS Support**: Build and publish to App Store
+- **Push Notifications**: Via FCM/APNs for alerts
+- **Plugin System**: Extension points for custom features
+- **Multi-Server Overview**: Aggregate CPU/RAM across servers
+- **Docker Images View**: List/filter/pull/manage images
+- **Compose Support**: Up/down compose files
 
 ---
 
