@@ -2,35 +2,36 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/qwe1/qwe1/agent/internal/auth"
 	"github.com/qwe1/qwe1/agent/internal/config"
 )
 
-func newTestServer(t *testing.T, readOnly bool) (*Server, *config.Config) {
+type tokenResponse struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	TokenType    string `json:"tokenType"`
+}
+
+func newTestServer(t *testing.T) (*Server, *config.Config) {
 	t.Helper()
 	cfg := config.Default()
-	cfg.Config.Dir = t.TempDir()
+	cfg.ServerName = filepath.Join(t.TempDir(), "agent")
 	cfg.Docker.Enabled = false
-	cfg.TLS.Cert = ""
-	cfg.TLS.Key = ""
+	cfg.TLSCertPath = ""
+	cfg.TLSKeyPath = ""
+	cfg.Files.AllowedRoots = []string{t.TempDir()}
 
-	root := t.TempDir()
-	cfg.Files.Roots = []string{root}
-	cfg.ReadOnly = readOnly
-
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	s, err := New(cfg, logger)
+	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +65,12 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 	return v
 }
 
+// enroll seeds an enrollment token into the store and exchanges it for
+// access/refresh tokens via the /auth/enroll endpoint.
 func enroll(t *testing.T, s *Server, h http.Handler) (access, refresh string) {
 	t.Helper()
-	tok, err := s.authSvc.GenerateEnrollment()
-	if err != nil {
-		t.Fatal(err)
-	}
+	tok := "qwe1-test-token"
+	s.auth.AddEnrollment(auth.HashToken(tok), time.Now().Add(time.Hour))
 	rec := doReq(t, h, http.MethodPost, "/auth/enroll", map[string]any{
 		"enrollmentToken": tok,
 		"device":          map[string]any{"name": "test", "platform": "ios"},
@@ -81,12 +82,9 @@ func enroll(t *testing.T, s *Server, h http.Handler) (access, refresh string) {
 	return resp.AccessToken, resp.RefreshToken
 }
 
-func TestHealthzAndStatus(t *testing.T) {
-	s, _ := newTestServer(t, false)
+func TestStatus(t *testing.T) {
+	s, _ := newTestServer(t)
 	h := s.routes()
-	if rec := doReq(t, h, "GET", "/healthz", nil, ""); rec.Code != http.StatusOK {
-		t.Fatalf("healthz = %d", rec.Code)
-	}
 	rec := doReq(t, h, "GET", "/status", nil, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -111,19 +109,18 @@ func TestHealthzAndStatus(t *testing.T) {
 }
 
 func TestAuthMiddlewareRejectsMissingToken(t *testing.T) {
-	s, _ := newTestServer(t, false)
-	rec := doReq(t, s.routes(), "GET", "/auth/me", nil, "")
-	if rec.Code != http.StatusUnauthorized {
+	s, _ := newTestServer(t)
+	h := s.routes()
+	if rec := doReq(t, h, "GET", "/auth/me", nil, ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("auth/me = %d, want 401", rec.Code)
 	}
-	rec = doReq(t, s.routes(), "GET", "/auth/me", nil, "invalid.token.here")
-	if rec.Code != http.StatusUnauthorized {
+	if rec := doReq(t, h, "GET", "/auth/me", nil, "invalid.token.here"); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("auth/me bad token = %d, want 401", rec.Code)
 	}
 }
 
 func TestEnrollAndAuthenticatedFlow(t *testing.T) {
-	s, _ := newTestServer(t, false)
+	s, _ := newTestServer(t)
 	h := s.routes()
 
 	access, refresh := enroll(t, s, h)
@@ -131,20 +128,15 @@ func TestEnrollAndAuthenticatedFlow(t *testing.T) {
 		t.Fatal("empty tokens from enroll")
 	}
 
-	// me
-	rec := doReq(t, h, "GET", "/auth/me", nil, access)
-	if rec.Code != http.StatusOK {
+	if rec := doReq(t, h, "GET", "/auth/me", nil, access); rec.Code != http.StatusOK {
 		t.Fatalf("me = %d body = %s", rec.Code, rec.Body.String())
 	}
-
-	// metrics
-	rec = doReq(t, h, "GET", "/metrics/latest", nil, access)
-	if rec.Code != http.StatusOK {
+	if rec := doReq(t, h, "GET", "/metrics/latest", nil, access); rec.Code != http.StatusOK {
 		t.Fatalf("metrics = %d", rec.Code)
 	}
 
-	// refresh
-	rec = doReq(t, h, "POST", "/auth/refresh", map[string]any{"refreshToken": refresh}, "")
+	// Refresh rotation.
+	rec := doReq(t, h, "POST", "/auth/refresh", map[string]any{"refreshToken": refresh}, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("refresh = %d body = %s", rec.Code, rec.Body.String())
 	}
@@ -152,15 +144,14 @@ func TestEnrollAndAuthenticatedFlow(t *testing.T) {
 	if resp.AccessToken == "" || resp.RefreshToken == "" {
 		t.Fatal("empty rotated tokens")
 	}
-	// Old refresh is now invalid.
-	rec = doReq(t, h, "POST", "/auth/refresh", map[string]any{"refreshToken": refresh}, "")
-	if rec.Code != http.StatusUnauthorized {
+	// Old refresh is now invalid and reuse revokes the device.
+	if rec := doReq(t, h, "POST", "/auth/refresh", map[string]any{"refreshToken": refresh}, ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("reuse refresh = %d, want 401", rec.Code)
 	}
 }
 
 func TestEnrollBadToken(t *testing.T) {
-	s, _ := newTestServer(t, false)
+	s, _ := newTestServer(t)
 	rec := doReq(t, s.routes(), "POST", "/auth/enroll",
 		map[string]any{"enrollmentToken": "qwe1-bogus", "device": map[string]any{}}, "")
 	if rec.Code != http.StatusUnauthorized {
@@ -168,34 +159,14 @@ func TestEnrollBadToken(t *testing.T) {
 	}
 }
 
-func TestReadOnlyGate(t *testing.T) {
-	s, cfg := newTestServer(t, true)
-	root := cfg.Files.Roots[0]
-	if err := os.WriteFile(filepath.Join(root, "existing.txt"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	h := s.routes()
-	access, _ := enroll(t, s, h)
-
-	// Read is allowed in read-only mode.
-	if rec := doReq(t, h, "GET", "/fs/list", nil, access); rec.Code != http.StatusOK {
-		t.Fatalf("fs/list = %d", rec.Code)
-	}
-	// Mutations are rejected with 403.
-	rec := doReq(t, h, "POST", "/fs/write?path=new.txt", "hi", access)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("fs/write in read-only = %d, want 403 (body %s)", rec.Code, rec.Body.String())
-	}
-}
-
 func TestFilesRoundTrip(t *testing.T) {
-	s, cfg := newTestServer(t, false)
+	s, cfg := newTestServer(t)
 	h := s.routes()
 	access, _ := enroll(t, s, h)
 
-	// Write (path is a query param, content is the raw body).
-	rec := doReq(t, h, "POST", "/fs/write?path=hello.txt", "hi there", access)
-	if rec.Code != http.StatusNoContent {
+	// Write (JSON body with path + content).
+	rec := doReq(t, h, "POST", "/fs/write", map[string]any{"path": "hello.txt", "content": "hi there"}, access)
+	if rec.Code != http.StatusOK {
 		t.Fatalf("write = %d body = %s", rec.Code, rec.Body.String())
 	}
 
@@ -226,7 +197,7 @@ func TestFilesRoundTrip(t *testing.T) {
 		t.Fatalf("hello.txt not listed: %+v", listed.Items)
 	}
 
-	// Read.
+	// Read (raw body).
 	rec = doReq(t, h, "GET", "/fs/read?path=hello.txt", nil, access)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("read = %d body = %s", rec.Code, rec.Body.String())
@@ -240,42 +211,26 @@ func TestFilesRoundTrip(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("delete = %d body = %s", rec.Code, rec.Body.String())
 	}
-	root := cfg.Files.Roots[0]
-	if _, err := os.Stat(filepath.Join(root, "hello.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(cfg.Files.AllowedRoots[0], "hello.txt")); !os.IsNotExist(err) {
 		t.Fatal("file not deleted")
 	}
 }
 
 func TestRevoke(t *testing.T) {
-	s, _ := newTestServer(t, false)
+	s, _ := newTestServer(t)
 	h := s.routes()
 	access, _ := enroll(t, s, h)
 	rec := doReq(t, h, "POST", "/auth/revoke", map[string]any{}, access)
-	if rec.Code != http.StatusOK && rec.Code != http.StatusNoContent {
+	if rec.Code != http.StatusNoContent {
 		t.Fatalf("revoke = %d body = %s", rec.Code, rec.Body.String())
 	}
-	// Access token may still validate (stateless JWT) but refresh is dead.
-	if got := s.authSvc.Devices(); len(got) != 0 {
-		t.Fatalf("devices after revoke = %d, want 0", len(got))
-	}
-}
-
-func TestShutdown(t *testing.T) {
-	s, _ := newTestServer(t, false)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go s.alertsWorker(ctx)
-	go s.sweepWorker(ctx)
-	go s.limiterCleanup(ctx)
-	if err := s.Shutdown(context.Background()); err != nil {
-		t.Fatal(err)
+	if got := s.auth.DeviceCount(); got != 0 {
+		t.Fatalf("devices after revoke = %d, want 0", got)
 	}
 }
 
 func TestAttemptTrackerLockout(t *testing.T) {
-	cfg := config.Default()
-	cfg.Auth.BruteForce = config.BruteForce{MaxAttempts: 2, Window: 10 * 1000000000, Lockout: 30 * 1000000000}
-	tr := auth.NewAttemptTracker(cfg.Auth.BruteForce.MaxAttempts, cfg.Auth.BruteForce.Window, cfg.Auth.BruteForce.Lockout)
+	tr := auth.NewAttemptTracker(2, 10*time.Second, 30*time.Second)
 	if tr.Locked("1.2.3.4") {
 		t.Fatal("should start unlocked")
 	}

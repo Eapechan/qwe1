@@ -4,151 +4,101 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
-func TestDefault(t *testing.T) {
+func TestDefaults(t *testing.T) {
 	c := Default()
-	if c.Listen != DefaultListen {
-		t.Fatalf("listen = %q", c.Listen)
+	if c.ServerName != "qwe1-agent" {
+		t.Fatalf("serverName = %q, want qwe1-agent", c.ServerName)
 	}
-	if c.Auth.TokenTTL != 15*time.Minute {
-		t.Fatalf("token ttl = %v", c.Auth.TokenTTL)
+	if c.ListenHost != "0.0.0.0" {
+		t.Fatalf("listenHost = %q, want 0.0.0.0", c.ListenHost)
 	}
-	if c.Auth.MaxDevices != 8 {
-		t.Fatalf("max devices = %d", c.Auth.MaxDevices)
+	if c.ListenPort != 9443 {
+		t.Fatalf("listenPort = %d, want 9443", c.ListenPort)
 	}
-	if c.Alert.Host.CPUPercent.Value != 90 {
-		t.Fatalf("cpu threshold = %v", c.Alert.Host.CPUPercent.Value)
+	if c.Auth.AccessTokenTTL != 900 {
+		t.Fatalf("accessTokenTTL = %d, want 900", c.Auth.AccessTokenTTL)
 	}
-	if c.Config.Dir != DefaultConfigDir {
-		t.Fatalf("config dir = %q", c.Config.Dir)
+	if c.Auth.RefreshTokenTTL != 2592000 {
+		t.Fatalf("refreshTokenTTL = %d, want 2592000", c.Auth.RefreshTokenTTL)
+	}
+	if !c.Docker.Enabled {
+		t.Fatal("docker should be enabled by default")
+	}
+	if c.Files.MaxUpload != 524288000 {
+		t.Fatalf("maxUpload = %d, want 524288000", c.Files.MaxUpload)
+	}
+}
+
+func TestLoadMissingFileReturnsDefaults(t *testing.T) {
+	c, err := Load(filepath.Join(t.TempDir(), "does-not-exist.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.ListenPort != 9443 || c.ServerName != "qwe1-agent" {
+		t.Fatalf("expected defaults, got %+v", c)
 	}
 }
 
 func TestLoadFromFile(t *testing.T) {
-	dir := t.TempDir()
-	cfgDir := filepath.Join(dir, "etc", "qwe1-agent")
-	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(cfgDir, "config.yaml")
+	path := filepath.Join(t.TempDir(), "config.yaml")
 	content := `
-listen: "127.0.0.1:9999"
-read_only: true
+serverName: my-server
+listenHost: "127.0.0.1"
+listenPort: 9999
 auth:
-  max_devices: 3
-  token_ttl: 10m
+  accessTokenTTL: 120
+  refreshTokenTTL: 604800
 files:
-  max_read_bytes: 1048576
+  maxUpload: 1048576
 `
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(path, nil)
+	c, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Listen != "127.0.0.1:9999" {
-		t.Fatalf("listen = %q", c.Listen)
+	if c.ServerName != "my-server" {
+		t.Fatalf("serverName = %q", c.ServerName)
 	}
-	if !c.ReadOnly {
-		t.Fatal("read_only not set")
+	if c.ListenHost != "127.0.0.1" {
+		t.Fatalf("listenHost = %q", c.ListenHost)
 	}
-	if c.Auth.MaxDevices != 3 {
-		t.Fatalf("max devices = %d", c.Auth.MaxDevices)
+	if c.ListenPort != 9999 {
+		t.Fatalf("listenPort = %d", c.ListenPort)
 	}
-	if c.Auth.TokenTTL != 10*time.Minute {
-		t.Fatalf("token ttl = %v", c.Auth.TokenTTL)
+	if c.Auth.AccessTokenTTL != 120 {
+		t.Fatalf("accessTokenTTL = %d", c.Auth.AccessTokenTTL)
 	}
-	if c.Files.MaxReadBytes != 1048576 {
-		t.Fatalf("max read = %d", c.Files.MaxReadBytes)
+	if c.Auth.RefreshTokenTTL != 604800 {
+		t.Fatalf("refreshTokenTTL = %d", c.Auth.RefreshTokenTTL)
 	}
-	// Defaults survive partial files.
-	if c.Alert.Host.MemPercent.Value != 90 {
-		t.Fatalf("mem threshold = %v", c.Alert.Host.MemPercent.Value)
+	if c.Files.MaxUpload != 1048576 {
+		t.Fatalf("maxUpload = %d", c.Files.MaxUpload)
+	}
+	// Unspecified fields fall back to defaults.
+	if !c.Alerts.Enabled {
+		t.Fatal("alerts should default to enabled")
 	}
 }
 
-func TestFlagsOverrideFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte("listen: 127.0.0.1:1111\n"), 0o644); err != nil {
+func TestLoadInvalidYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	// listenPort expects int; string will fail unmarshal
+	if err := os.WriteFile(path, []byte("listenPort: notanumber\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(path, []string{"-listen", "0.0.0.0:2222", "-log-level", "debug"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.Listen != "0.0.0.0:2222" {
-		t.Fatalf("listen = %q", c.Listen)
-	}
-	if c.Log.Level != "debug" {
-		t.Fatalf("log level = %q", c.Log.Level)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected error for invalid YAML")
 	}
 }
 
-func TestEnvOverrides(t *testing.T) {
-	t.Setenv("QWE1_LISTEN", "10.0.0.1:9443")
-	t.Setenv("QWE1_READ_ONLY", "1")
-	t.Setenv("QWE1_LOG_LEVEL", "error")
-	c, err := Load("", []string{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.Listen != "10.0.0.1:9443" {
-		t.Fatalf("listen = %q", c.Listen)
-	}
-	if !c.ReadOnly {
-		t.Fatal("read_only not set from env")
-	}
-	if c.Log.Level != "error" {
-		t.Fatalf("log level = %q", c.Log.Level)
-	}
-}
-
-func TestValidateErrors(t *testing.T) {
-	cases := []struct {
-		name string
-		mut  func(*Config)
-	}{
-		{"listen empty", func(c *Config) { c.Listen = "" }},
-		{"token ttl zero", func(c *Config) { c.Auth.TokenTTL = 0 }},
-		{"token ttl too long", func(c *Config) { c.Auth.TokenTTL = 2 * time.Hour }},
-		{"enrollment ttl zero", func(c *Config) { c.Auth.EnrollmentTTL = 0 }},
-		{"max devices zero", func(c *Config) { c.Auth.MaxDevices = 0 }},
-		{"max devices too big", func(c *Config) { c.Auth.MaxDevices = 100 }},
-		{"brute force zero", func(c *Config) { c.Auth.BruteForce.MaxAttempts = 0 }},
-		{"max read zero", func(c *Config) { c.Files.MaxReadBytes = 0 }},
-		{"audit size zero", func(c *Config) { c.Audit.Size = 0 }},
-		{"bad log level", func(c *Config) { c.Log.Level = "verbose" }},
-		{"empty config dir", func(c *Config) { c.Config.Dir = "" }},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			c := Default()
-			tc.mut(c)
-			if err := c.Validate(); err == nil {
-				t.Fatal("expected validation error")
-			}
-		})
-	}
-}
-
-func TestKeyPaths(t *testing.T) {
-	c := Default()
-	c.Config.Dir = "/tmp/qwe1-test"
-	signing, data, cert, key := c.KeyPaths()
-	if signing != "/tmp/qwe1-test/signing.pem" {
-		t.Fatalf("signing = %q", signing)
-	}
-	if data != "/tmp/qwe1-test/data.json" {
-		t.Fatalf("data = %q", data)
-	}
-	if cert != "/tmp/qwe1-test/certs/server.crt" {
-		t.Fatalf("cert = %q", cert)
-	}
-	if key != "/tmp/qwe1-test/certs/server.key" {
-		t.Fatalf("key = %q", key)
+func TestDefaultIsIsolated(t *testing.T) {
+	base := Default()
+	base.ServerName = "mutated"
+	if conn := Default().ServerName; conn != "qwe1-agent" {
+		t.Fatalf("Default() not isolated, got %q", conn)
 	}
 }

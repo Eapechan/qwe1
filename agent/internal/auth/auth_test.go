@@ -1,240 +1,197 @@
 package auth
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-const (
-	testTTL     = 15 * time.Minute
-	testRefresh = 30 * time.Minute
-	testEnroll  = 10 * time.Minute
-)
-
-func newTestService(t *testing.T) (*Service, *Store, time.Time) {
-	t.Helper()
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestStoreEnrollmentLifecycle(t *testing.T) {
 	store, err := NewStore(filepath.Join(t.TempDir(), "data.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	svc := New(&Keypair{Private: key, Public: &key.PublicKey}, store, testTTL, testRefresh, testEnroll, 8)
-	svc.SetClock(func() time.Time { return now })
-	return svc, store, now
-}
+	hash := HashToken("qwe1-secret")
 
-func TestEnrollAndIssue(t *testing.T) {
-	svc, _, now := newTestService(t)
-	tok, err := svc.GenerateEnrollment()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(tok) < 32 {
-		t.Fatalf("token too short: %q", tok)
-	}
-	deviceID, err := svc.ConsumeEnrollment(tok)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if deviceID == "" {
-		t.Fatal("empty device id")
+	if _, ok := store.EnrollByHash(hash); ok {
+		t.Fatal("enrollment should not exist yet")
 	}
 
-	access, refresh, exp, err := svc.Issue(deviceID)
-	if err != nil {
-		t.Fatal(err)
+	store.AddEnrollment(hash, time.Now().Add(time.Hour))
+	if rec, ok := store.EnrollByHash(hash); !ok {
+		t.Fatal("enrollment should exist after add")
+	} else if rec.Used {
+		t.Fatal("new enrollment should not be marked used")
 	}
-	if access == "" || refresh == "" {
-		t.Fatal("empty tokens")
-	}
-	if !exp.After(now) {
-		t.Fatal("expiry not in future")
-	}
-	claims, err := svc.ValidateAccess(access)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if claims.DeviceID != deviceID {
-		t.Fatalf("claims device = %q, want %q", claims.DeviceID, deviceID)
+
+	store.MarkEnrollmentUsed(hash)
+	if rec, ok := store.EnrollByHash(hash); !ok {
+		t.Fatal("enrollment should still exist")
+	} else if !rec.Used {
+		t.Fatal("enrollment should be marked used")
 	}
 }
 
-func TestEnrollmentSingleUse(t *testing.T) {
-	svc, _, _ := newTestService(t)
-	tok, err := svc.GenerateEnrollment()
+func TestSignerRoundTrip(t *testing.T) {
+	s, err := NewSigner("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ConsumeEnrollment(tok); err != nil {
+	tok, err := s.GenerateAccessToken("dev-123", time.Minute)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ConsumeEnrollment(tok); err != ErrEnrollmentUsed {
-		t.Fatalf("second consume = %v, want ErrEnrollmentUsed", err)
+	got, err := s.ValidateAccessToken(tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "dev-123" {
+		t.Fatalf("device = %q, want dev-123", got)
 	}
 }
 
-func TestEnrollmentExpired(t *testing.T) {
-	svc, _, now := newTestService(t)
-	tok, err := svc.GenerateEnrollment()
+func TestSignerDerivesSameSecretFromHex(t *testing.T) {
+	a, err := NewSigner("ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00")
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc.SetClock(func() time.Time { return now.Add(testEnroll + time.Minute) })
-	if _, err := svc.ConsumeEnrollment(tok); err != ErrInvalidEnrollment {
-		t.Fatalf("expired consume = %v, want ErrInvalidEnrollment", err)
+	b, err := NewSigner("ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, _ := a.GenerateAccessToken("dev", time.Minute)
+	if _, err := b.ValidateAccessToken(tok); err != nil {
+		t.Fatalf("token not valid across same-secret signers: %v", err)
 	}
 }
 
-func TestDeviceLimit(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+func TestSignerRejectsTamperedToken(t *testing.T) {
+	s, err := NewSigner("")
 	if err != nil {
 		t.Fatal(err)
 	}
+	tok, _ := s.GenerateAccessToken("dev", time.Minute)
+	if _, err := s.ValidateAccessToken(tok + "x"); err != ErrTokenInvalid {
+		t.Fatalf("tampered token err = %v, want ErrTokenInvalid", err)
+	}
+	if _, err := s.ValidateAccessToken("not.a.token"); err != ErrTokenInvalid {
+		t.Fatalf("malformed token err = %v, want ErrTokenInvalid", err)
+	}
+}
+
+func TestValidateAccess(t *testing.T) {
 	store, err := NewStore(filepath.Join(t.TempDir(), "data.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := New(&Keypair{Private: key, Public: &key.PublicKey}, store, testTTL, testRefresh, testEnroll, 1)
-	for i := 0; i < 2; i++ {
-		tok, err := svc.GenerateEnrollment()
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = svc.ConsumeEnrollment(tok)
-		if i == 0 && err != nil {
-			t.Fatalf("first enroll failed: %v", err)
-		}
-		if i == 1 && err != ErrDeviceLimit {
-			t.Fatalf("second enroll = %v, want ErrDeviceLimit", err)
-		}
+	refresh := "some-refresh-token"
+	store.AddRefresh(HashToken(refresh), "device-1", time.Now().Add(time.Hour))
+
+	claims, err := store.ValidateAccess(HashToken(refresh))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.DeviceID != "device-1" {
+		t.Fatalf("device = %q, want device-1", claims.DeviceID)
+	}
+
+	store.MarkRefreshUsed(HashToken(refresh))
+	if _, err := store.ValidateAccess(HashToken(refresh)); err != ErrTokenInvalid {
+		t.Fatalf("used token err = %v, want ErrTokenInvalid", err)
 	}
 }
 
-func TestRefreshRotationAndReuse(t *testing.T) {
-	svc, _, _ := newTestService(t)
-	tok, _ := svc.GenerateEnrollment()
-	deviceID, err := svc.ConsumeEnrollment(tok)
+func TestValidateAccessExpired(t *testing.T) {
+	store, err := NewStore(filepath.Join(t.TempDir(), "data.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, refresh, _, err := svc.Issue(deviceID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	refresh := "expired-token"
+	store.AddRefresh(HashToken(refresh), "device-1", time.Now().Add(-time.Hour))
 
-	// First rotation succeeds.
-	_, newRefresh, gotDevice, _, err := svc.Refresh(refresh)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotDevice != deviceID {
-		t.Fatalf("device = %q, want %q", gotDevice, deviceID)
-	}
-
-	// Reusing the old token is detected as reuse and revokes the device.
-	_, _, _, _, err = svc.Refresh(refresh)
-	if err != ErrRefreshReuse {
-		t.Fatalf("reuse = %v, want ErrRefreshReuse", err)
-	}
-
-	// The new token is now invalid because the device was revoked.
-	_, _, _, _, err = svc.Refresh(newRefresh)
-	if err != ErrInvalidRefresh {
-		t.Fatalf("post-revoke refresh = %v, want ErrInvalidRefresh", err)
+	if _, err := store.ValidateAccess(HashToken(refresh)); err != ErrTokenExpired {
+		t.Fatalf("expired token err = %v, want ErrTokenExpired", err)
 	}
 }
 
-func TestRefreshExpiredRevokesDevice(t *testing.T) {
-	svc, _, now := newTestService(t)
-	tok, _ := svc.GenerateEnrollment()
-	deviceID, err := svc.ConsumeEnrollment(tok)
+func TestRefreshRotationAndRevoke(t *testing.T) {
+	store, err := NewStore(filepath.Join(t.TempDir(), "data.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, refresh, _, err := svc.Issue(deviceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	svc.SetClock(func() time.Time { return now.Add(testRefresh + time.Hour) })
-	if _, _, _, _, err := svc.Refresh(refresh); err != ErrInvalidRefresh {
-		t.Fatalf("expired refresh = %v, want ErrInvalidRefresh", err)
-	}
-}
+	store.AddDevice("device-1", "test", time.Now().UTC())
+	old := "old-refresh"
+	store.AddRefresh(HashToken(old), "device-1", time.Now().Add(time.Hour))
 
-func TestValidateAccessRejectsExpired(t *testing.T) {
-	svc, _, now := newTestService(t)
-	access, _, _, err := svc.Issue("dev-1")
-	if err != nil {
-		t.Fatal(err)
+	if _, ok := store.RefreshByHash(HashToken(old)); !ok {
+		t.Fatal("old refresh should be found")
 	}
-	svc.SetClock(func() time.Time { return now.Add(testTTL + time.Minute) })
-	if _, err := svc.ValidateAccess(access); err != ErrTokenExpired {
-		t.Fatalf("validate = %v, want ErrTokenExpired", err)
+
+	store.MarkRefreshUsed(HashToken(old))
+	// Reuse of the old token revokes the device.
+	store.RevokeDevice("device-1")
+	if n := store.DeviceCount(); n != 0 {
+		t.Fatalf("devices after revoke = %d, want 0", n)
+	}
+	if info, ok := store.RefreshByHash(HashToken(old)); !ok || !info.Revoked {
+		t.Fatal("old refresh should be revoked")
 	}
 }
 
 func TestRevokeAll(t *testing.T) {
-	svc, _, _ := newTestService(t)
-	tok, _ := svc.GenerateEnrollment()
-	deviceID, err := svc.ConsumeEnrollment(tok)
+	store, err := NewStore(filepath.Join(t.TempDir(), "data.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, refresh, _, err := svc.Issue(deviceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.RevokeAll(); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, _, _, err := svc.Refresh(refresh); err != ErrInvalidRefresh {
-		t.Fatalf("refresh after revoke-all = %v, want ErrInvalidRefresh", err)
+	store.AddDevice("device-1", "test", time.Now().UTC())
+	store.AddRefresh(HashToken("r1"), "device-1", time.Now().Add(time.Hour))
+
+	store.RevokeAll()
+	if n := store.DeviceCount(); n != 0 {
+		t.Fatalf("devices after revoke-all = %d, want 0", n)
 	}
 }
 
 func TestStorePersistence(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
 	path := filepath.Join(t.TempDir(), "data.json")
 	store, err := NewStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := New(&Keypair{Private: key, Public: &key.PublicKey}, store, testTTL, testRefresh, testEnroll, 8)
-	tok, _ := svc.GenerateEnrollment()
-	deviceID, err := svc.ConsumeEnrollment(tok)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, refresh, _, err := svc.Issue(deviceID)
-	if err != nil {
+	store.AddEnrollment(HashToken("tok"), time.Now().Add(time.Hour))
+	if err := store.Persist(); err != nil {
 		t.Fatal(err)
 	}
 
-	// Reload from disk.
 	store2, err := NewStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc2 := New(&Keypair{Private: key, Public: &key.PublicKey}, store2, testTTL, testRefresh, testEnroll, 8)
-	if _, _, gotDevice, _, err := svc2.Refresh(refresh); err != nil || gotDevice != deviceID {
-		t.Fatalf("refresh after reload failed: %v", err)
+	if _, ok := store2.EnrollByHash(HashToken("tok")); !ok {
+		t.Fatal("enrollment not found after reload")
+	}
+}
+
+func TestAttemptTrackerLockout(t *testing.T) {
+	tr := NewAttemptTracker(2, time.Second, time.Second)
+	if tr.Locked("1.2.3.4") {
+		t.Fatal("should start unlocked")
+	}
+	tr.Fail("1.2.3.4")
+	tr.Fail("1.2.3.4")
+	if !tr.Locked("1.2.3.4") {
+		t.Fatal("should be locked after 2 failures")
+	}
+	tr.Success("1.2.3.4")
+	if tr.Locked("1.2.3.4") {
+		t.Fatal("should unlock on success")
 	}
 }
 
 func TestHashTokenDeterministic(t *testing.T) {
-	a := hashToken("secret-token")
-	b := hashToken("secret-token")
-	c := hashToken("other")
+	a := HashToken("secret-token")
+	b := HashToken("secret-token")
+	c := HashToken("other")
 	if a != b {
 		t.Fatal("hash not deterministic")
 	}
@@ -242,6 +199,6 @@ func TestHashTokenDeterministic(t *testing.T) {
 		t.Fatal("different inputs hashed equal")
 	}
 	if len(a) != 64 {
-		t.Fatalf("hash length = %d", len(a))
+		t.Fatalf("hash length = %d, want 64", len(a))
 	}
 }

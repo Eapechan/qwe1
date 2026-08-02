@@ -371,9 +371,7 @@ func (s *Server) handleTerminalDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
-	if path == "" {
-		path = "/"
-	}
+	// Empty path defaults to first root in Resolve(); do not convert to "/"
 
 	items, err := s.files.List(path)
 	if err != nil {

@@ -13,20 +13,20 @@ type Config struct {
 	TLSCertPath string `yaml:"tlsCertPath"`
 	TLSKeyPath  string `yaml:"tlsKeyPath"`
 
-	Auth    AuthConfig    `yaml:"auth"`
-	Docker  DockerConfig  `yaml:"docker"`
-	Host    HostConfig    `yaml:"host"`
+	Auth     AuthConfig     `yaml:"auth"`
+	Docker   DockerConfig   `yaml:"docker"`
+	Host     HostConfig     `yaml:"host"`
 	Terminal TerminalConfig `yaml:"terminal"`
-	Files   FilesConfig   `yaml:"files"`
-	Alerts  AlertsConfig  `yaml:"alerts"`
+	Files    FilesConfig    `yaml:"files"`
+	Alerts   AlertsConfig   `yaml:"alerts"`
 }
 
 type AuthConfig struct {
-	TokenLength     int    `yaml:"tokenLength"`
-	AccessTokenTTL  int    `yaml:"accessTokenTTL"`
-	RefreshTokenTTL int    `yaml:"refreshTokenTTL"`
-	MaxAttempts     int    `yaml:"maxAttempts"`
-	LockoutDuration int    `yaml:"lockoutDuration"`
+	TokenLength     int `yaml:"tokenLength"`
+	AccessTokenTTL  int `yaml:"accessTokenTTL"`
+	RefreshTokenTTL int `yaml:"refreshTokenTTL"`
+	MaxAttempts     int `yaml:"maxAttempts"`
+	LockoutDuration int `yaml:"lockoutDuration"`
 }
 
 type DockerConfig struct {
@@ -35,7 +35,7 @@ type DockerConfig struct {
 }
 
 type HostConfig struct {
-	MetricsInterval int  `yaml:"metricsInterval"`
+	MetricsInterval int    `yaml:"metricsInterval"`
 	TemperaturePath string `yaml:"temperaturePath"`
 }
 
@@ -50,10 +50,10 @@ type FilesConfig struct {
 }
 
 type AlertsConfig struct {
-	Enabled     bool `yaml:"enabled"`
-	BufferSize  int  `yaml:"bufferSize"`
-	WebhookURL  string `yaml:"webhookUrl"`
-	NtfyTopic   string `yaml:"ntfyTopic"`
+	Enabled    bool   `yaml:"enabled"`
+	BufferSize int    `yaml:"bufferSize"`
+	WebhookURL string `yaml:"webhookUrl"`
+	NtfyTopic  string `yaml:"ntfyTopic"`
 }
 
 func Load(path string) (*Config, error) {
@@ -71,6 +71,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// Default returns a copy of the built-in default configuration.
+func Default() *Config {
+	return defaultConfig()
 }
 
 func defaultConfig() *Config {

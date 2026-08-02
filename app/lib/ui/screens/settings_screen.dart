@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/settings/settings_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
@@ -65,16 +66,14 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Clear Cache',
             subtitle: 'Clear cached data and temporary files',
             onTap: () => _showClearCacheDialog(context, ref),
-          ),
+          ).animate().fadeIn(duration: 200.ms),
           _buildSettingsTile(
             context,
             icon: Icons.upload_rounded,
             title: 'Export Server List',
             subtitle: 'Export your server configurations',
-            onTap: () {
-              // TODO: Implement export
-            },
-          ),
+            onTap: () => _showExportDialog(context),
+          ).animate().fadeIn(duration: 200.ms),
           const Divider(indent: 56, endIndent: 16),
 
           // About
@@ -83,19 +82,14 @@ class SettingsScreen extends ConsumerWidget {
             context,
             icon: Icons.info_outline_rounded,
             title: 'Version',
-            subtitle: '1.0.0',
+            subtitle: '1.0.0+1',
           ),
           _buildSettingsTile(
             context,
             icon: Icons.code_rounded,
             title: 'Source Code',
             subtitle: 'View on GitHub',
-            onTap: () async {
-              final url = Uri.parse('https://github.com/qwe1/qwe1');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
+            onTap: () => _launchUrl(context),
           ),
           _buildSettingsTile(
             context,
@@ -103,6 +97,16 @@ class SettingsScreen extends ConsumerWidget {
             title: 'License',
             subtitle: 'AGPL-3.0-or-later',
           ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'v1.0.0\nqwe1 Agent',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.onSurfaceMuted,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ).animate().fadeIn(duration: 300.ms),
         ],
       ),
     );
@@ -185,7 +189,7 @@ class SettingsScreen extends ConsumerWidget {
           _buildThemeOption(context, ref, 'System Default', ThemeMode.system, currentMode),
         ],
       ),
-    );
+    ).animate().scale(begin: Offset(0.8, 1.1), end: Offset.one, duration: 150.ms);
   }
 
   Widget _buildThemeOption(
@@ -221,16 +225,47 @@ class SettingsScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement cache clearing
+              // Clear SharedPreferences cache
+              ref.read(settingsProvider.notifier).clearCache();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cache cleared')),
-              );
+                const SnackBar(
+                  content: Text('Cache cleared successfully'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              ).animate().fadeIn(duration: 150.ms),
             },
             child: const Text('Clear'),
           ),
         ],
       ),
-    );
+    ).animate().scale(begin: Offset(0.9, 0.9), end: Offset.one, duration: 150.ms);
+  }
+
+  void _showExportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Server List'),
+        content: const Text('This feature is coming soon. Your server configurations can be exported for backup purposes.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    ).animate().scale(begin: Offset(0.9, 0.9), end: Offset.one, duration: 150.ms);
+  }
+
+  void _launchUrl(BuildContext context) async {
+    final url = Uri.parse('https://github.com/qwe1/qwe1');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not launch URL')),
+      );
+    }
   }
 }

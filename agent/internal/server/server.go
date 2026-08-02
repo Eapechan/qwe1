@@ -10,33 +10,33 @@ import (
 
 	"path/filepath"
 
-	"github.com/qwe1/qwe1/agent/internal/audit"
-	"github.com/qwe1/qwe1/agent/internal/config"
-	"github.com/qwe1/qwe1/agent/internal/auth"
-	"github.com/qwe1/qwe1/agent/internal/host"
-	"github.com/qwe1/qwe1/agent/internal/docker"
-	"github.com/qwe1/qwe1/agent/internal/terminal"
-	"github.com/qwe1/qwe1/agent/internal/files"
 	"github.com/qwe1/qwe1/agent/internal/alerts"
+	"github.com/qwe1/qwe1/agent/internal/audit"
+	"github.com/qwe1/qwe1/agent/internal/auth"
+	"github.com/qwe1/qwe1/agent/internal/config"
+	"github.com/qwe1/qwe1/agent/internal/docker"
+	"github.com/qwe1/qwe1/agent/internal/files"
+	"github.com/qwe1/qwe1/agent/internal/host"
 	"github.com/qwe1/qwe1/agent/internal/ratelimit"
+	"github.com/qwe1/qwe1/agent/internal/terminal"
 )
 
 type Server struct {
-	cfg         *config.Config
-	httpServer  *http.Server
-	auth        *auth.Store
-	signer      *auth.Signer
-	host        *host.Collector
-	docker      *docker.Manager
-	terminal    *terminal.Manager
-	files       *files.Manager
-	alerts      *alerts.Engine
-	rateLimit   *ratelimit.Limiter
+	cfg          *config.Config
+	httpServer   *http.Server
+	auth         *auth.Store
+	signer       *auth.Signer
+	host         *host.Collector
+	docker       *docker.Manager
+	terminal     *terminal.Manager
+	files        *files.Manager
+	alerts       *alerts.Engine
+	rateLimit    *ratelimit.Limiter
 	limiterToken *ratelimit.Limiter
-	limiterIP   *ratelimit.Limiter
-	auditLog    *audit.Log
-	readOnly    bool
-	wsHub       *WSHub
+	limiterIP    *ratelimit.Limiter
+	auditLog     *audit.Log
+	readOnly     bool
+	wsHub        *WSHub
 }
 
 func New(cfg *config.Config) (*Server, error) {
@@ -89,7 +89,9 @@ func New(cfg *config.Config) (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Run(ctx context.Context) error {
+// routes builds the HTTP handler for the agent. It is extracted from Run so it
+// can be exercised directly by httptest.
+func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Public routes
@@ -98,8 +100,8 @@ func (s *Server) Run(ctx context.Context) error {
 	// Auth routes
 	mux.HandleFunc("POST /auth/enroll", s.handleEnroll)
 	mux.HandleFunc("POST /auth/refresh", s.handleRefresh)
-	mux.HandleFunc("POST /auth/revoke", s.handleRevoke)
-	mux.HandleFunc("GET /auth/me", s.handleMe)
+	mux.HandleFunc("POST /auth/revoke", s.authMiddleware(s.handleRevoke))
+	mux.HandleFunc("GET /auth/me", s.authMiddleware(s.handleMe))
 
 	// Protected routes
 	mux.HandleFunc("GET /metrics/latest", s.authMiddleware(s.handleMetricsLatest))
@@ -142,6 +144,10 @@ func (s *Server) Run(ctx context.Context) error {
 	// Audit
 	mux.HandleFunc("GET /audit", s.authMiddleware(s.handleAudit))
 
+	return s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux)))
+}
+
+func (s *Server) Run(ctx context.Context) error {
 	// Create TLS config
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS13,
@@ -149,7 +155,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", s.cfg.ListenHost, s.cfg.ListenPort),
-		Handler:      s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux))),
+		Handler:      s.routes(),
 		TLSConfig:    tlsConfig,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,

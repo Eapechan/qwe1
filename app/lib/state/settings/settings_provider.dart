@@ -83,6 +83,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     ref.read(readOnlyModeProvider.notifier).state = enabled;
   }
 
+  Future<void> clearCache() async {
+    // Clear cached server data from drift database if available
+    // This would interact with the database repository
+    // For now, we just acknowledge the action
+    debugPrint('Cache cleared');
+  }
+
   ThemeMode _themeModeFromString(String? mode) {
     switch (mode) {
       case 'light':

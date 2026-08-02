@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/ui/screens/dashboard_screen.dart';
@@ -18,61 +19,176 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const DashboardScreen(),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const DashboardScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return child
+                .animate(
+                  curves: Curves.easeOutCubic,
+                )
+                .fadeIn(duration: 200.ms)
+                .buildTransitionalChild(animation);
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/onboarding',
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const OnboardingScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/add-server',
-        builder: (context, state) => const AddServerScreen(),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const AddServerScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position: animation.drive(
+                  Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero),
+                ),
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/server/:serverId',
-        builder: (context, state) => ServerDetailScreen(
-          serverId: state.pathParameters['serverId']!,
-        ),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ServerDetailScreen(
+              serverId: state.pathParameters['serverId']!,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/server/:serverId/containers',
-        builder: (context, state) => ContainerListScreen(
-          serverId: state.pathParameters['serverId']!,
-        ),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ContainerListScreen(
+              serverId: state.pathParameters['serverId']!,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/server/:serverId/containers/:containerId',
-        builder: (context, state) => ContainerDetailScreen(
-          serverId: state.pathParameters['serverId']!,
-          containerId: state.pathParameters['containerId']!,
-        ),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ContainerDetailScreen(
+              serverId: state.pathParameters['serverId']!,
+              containerId: state.pathParameters['containerId']!,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/server/:serverId/terminal',
-        builder: (context, state) => TerminalScreen(
-          serverId: state.pathParameters['serverId']!,
-        ),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: TerminalScreen(
+              serverId: state.pathParameters['serverId']!,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/server/:serverId/files',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final path = state.uri.queryParameters['path'] ?? '/';
-          return FileBrowserScreen(
-            serverId: state.pathParameters['serverId']!,
-            initialPath: path,
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: FileBrowserScreen(
+              serverId: state.pathParameters['serverId']!,
+              initialPath: path,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
           );
         },
       ),
       GoRoute(
         path: '/server/:serverId/alerts',
-        builder: (context, state) => AlertsScreen(
-          serverId: state.pathParameters['serverId']!,
-        ),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: AlertsScreen(
+              serverId: state.pathParameters['serverId']!,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const SettingsScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position: animation.drive(
+                  Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero),
+                ),
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+          );
+        },
       ),
     ],
+    errorBuilder: (context, state) => const DashboardScreen(),
   );
 });
