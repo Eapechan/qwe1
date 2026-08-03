@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -677,6 +678,14 @@ func (s *Server) handleFsSearch(w http.ResponseWriter, r *http.Request) {
 		"items": results,
 		"total": len(results),
 	})
+}
+
+func (s *Server) handlePprof(w http.ResponseWriter, r *http.Request) {
+	pprof.Index(w, r)
+}
+
+func (s *Server) handlePprofProfile(w http.ResponseWriter, r *http.Request) {
+	pprof.Profile(w, r)
 }
 
 func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) {

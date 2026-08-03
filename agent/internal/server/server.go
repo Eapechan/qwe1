@@ -160,6 +160,10 @@ func (s *Server) routes() http.Handler {
 	// Audit
 	mux.HandleFunc("GET /audit", s.authMiddleware(s.handleAudit))
 
+	// Profiling (debug only)
+	mux.HandleFunc("GET /debug/pprof/", s.authMiddleware(s.handlePprof))
+	mux.HandleFunc("GET /debug/pprof/profile", s.authMiddleware(s.handlePprofProfile))
+
 	return s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux)))
 }
 
