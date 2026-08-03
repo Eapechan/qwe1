@@ -415,23 +415,25 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 9: Notifications
 
-**Status:** IN PROGRESS
+**Status:** Complete
 
 - [x] Critical alerts (`SevCritical`)
 - [x] Warnings (`SevWarning`)
 - [x] Information (`SevInfo`)
-- [x] Server offline (not yet — agent-side detection)
+- [ ] Server offline (agent-side detection — future)
 - [x] Container stopped (`ContainerDown` event)
 - [x] Disk full (threshold-based)
 - [x] High CPU (threshold-based)
 - [x] High RAM (threshold-based)
-- [x] Network issues (not yet)
+- [ ] Network issues (future)
 
 **Deliverable:** Notification engine.
 
 ---
 
 ### Phase 10: Live Updates
+
+**Status:** Complete
 
 - [x] WebSocket (`/ws` endpoint)
 - [x] Realtime metrics (broadcast every 5s)
@@ -445,6 +447,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 ---
 
 ### Phase 11: Security
+
+**Status:** IN PROGRESS
 
 - [x] Rate limiting (per-IP and per-token)
 - [x] Encryption (HMAC-SHA256 token signing)
