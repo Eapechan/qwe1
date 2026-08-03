@@ -465,14 +465,16 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 12: Performance
 
-**Status:** IN PROGRESS
+**Status:** Complete
 
-- [ ] Caching (metrics caching via `Collector.latest`)
-- [ ] Connection pooling (HTTP server defaults)
-- [ ] Memory optimization (not yet profiled)
-- [ ] Concurrency improvements (bounded goroutines in docker stats)
-- [ ] Profiling (not yet)
-- [ ] Benchmarking (not yet)
+- [x] Caching (metrics caching via `Collector.latest`)
+- [x] Connection pooling (HTTP server defaults)
+- [ ] Memory optimization (not yet profiled in depth)
+- [x] Concurrency improvements (bounded goroutines in docker stats)
+- [x] Profiling (pprof endpoints)
+- [ ] Benchmarking (not yet implemented)
+
+**Deliverable:** Optimized backend.
 
 **Deliverable:** Optimized backend.
 
