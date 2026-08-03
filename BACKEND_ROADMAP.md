@@ -448,7 +448,7 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 11: Security
 
-**Status:** IN PROGRESS
+**Status:** Complete
 
 - [x] Rate limiting (per-IP and per-token)
 - [x] Encryption (HMAC-SHA256 token signing)
@@ -456,7 +456,7 @@ Documented backend audit with current state assessment, dead code removal, and g
 - [x] Secure tokens (short-lived access + rotating refresh)
 - [x] Input validation (partial — in handlers)
 - [x] Output sanitization (docker inspect env masking)
-- [x] Command restrictions (not yet — shell is configurable)
+- [ ] Command restrictions (not yet — shell is configurable)
 - [x] Audit logging (ring buffer, handler stubbed)
 
 **Deliverable:** Production-grade security.
@@ -464,6 +464,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 ---
 
 ### Phase 12: Performance
+
+**Status:** IN PROGRESS
 
 - [ ] Caching (metrics caching via `Collector.latest`)
 - [ ] Connection pooling (HTTP server defaults)
