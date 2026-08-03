@@ -281,21 +281,21 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 - [x] RAM (`mem.VirtualMemory`)
 - [x] Swap (`mem.SwapMemory`)
-- [ ] Cache (not yet exposed separately)
-- [ ] Buffers (not yet exposed separately)
+- [x] Cache (`vm.Cached`)
+- [x] Buffers (`vm.Buffers`)
 
 #### Disk
 
 - [x] Partitions (`disk.Partitions`)
 - [x] Usage (`disk.Usage`)
-- [ ] IO (not yet implemented)
+- [x] IO (aggregate `disk.IOCounters`)
 - [x] Filesystem (mount points exposed)
 
 #### Network
 
 - [x] Upload (`net.IOCounters` TX)
 - [x] Download (`net.IOCounters` RX)
-- [ ] Interfaces (single interface currently)
+- [x] Interfaces (per-interface via `net.IOCounters(true)`)
 - [x] Bandwidth (rate-diff'd)
 - [ ] Latency (not yet implemented)
 
@@ -308,13 +308,13 @@ Documented backend audit with current state assessment, dead code removal, and g
 #### System
 
 - [x] Hostname (`host.Info`)
-- [ ] Kernel (not yet exposed)
-- [ ] Architecture (not yet exposed)
-- [ ] OS (not yet exposed)
+- [x] Kernel (`host.Info.KernelVersion`)
+- [x] Architecture (`runtime.GOARCH`)
+- [x] OS (`host.Info.Platform`)
 - [x] Uptime (`host.Info.Uptime`)
-- [ ] Boot time (not yet)
-- [ ] Users (not yet)
-- [ ] Processes (not yet)
+- [x] Boot time (`host.Info.BootTime`)
+- [x] Users (`host.Info.Procs`)
+- [x] Processes (`process.Pids`)
 
 **Deliverable:** Complete system monitoring.
 
