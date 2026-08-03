@@ -30,6 +30,7 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
     required String name,
     required String agentUrl,
     required String enrollmentToken,
+    String tailscaleUrl = '',
     String groupName = '',
   }) async {
     try {
@@ -38,11 +39,13 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
         name: name,
         agentUrl: agentUrl,
         enrollmentToken: enrollmentToken,
+        tailscaleUrl: tailscaleUrl,
         groupName: groupName,
       );
       await loadServers();
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 

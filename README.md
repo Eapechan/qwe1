@@ -60,22 +60,22 @@ docker run -d --name qwe1-agent --restart unless-stopped \
 ./qwe1-agent --enroll
 ```
 
-This shows an enrollment token you'll enter in the app. The token is **single-use** — generate a fresh one for each device/attempt.
+This prints a QR code you can scan with the app, plus an enrollment token you can paste. The token is valid for **1 hour** and can be used by multiple devices within that window. After 1 hour, run `--enroll` again.
 
 ### 3. Install the app
 
-Build the APK or install from releases, then enter your server URL and the enrollment token.
+Build the APK or install from releases, then scan the QR code or enter your server URL and the enrollment token.
 
 See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
 
-Run the agent manually (two terminals on the server):
+Run the agent (or use `./token.sh` for a one-liner):
 
 ```bash
 # terminal 1 — run the agent
 ./qwe1-agent --config config.yaml
 
-# terminal 2 — generate a fresh single-use token
-./qwe1-agent --enroll --config config.yaml
+# terminal 2 — generate a token + QR code
+./token.sh
 ```
 
 For a production deployment with TLS certs + systemd, follow the manual steps in

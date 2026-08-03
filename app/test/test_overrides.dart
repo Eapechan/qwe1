@@ -50,12 +50,14 @@ class FakeServerRepository implements ServerRepository {
     required String name,
     required String agentUrl,
     required String enrollmentToken,
+    String tailscaleUrl = '',
     String groupName = '',
   }) async {
     final server = Server(
       id: 'server-${_servers.length + 1}',
       name: name,
       agentUrl: agentUrl,
+      tailscaleUrl: tailscaleUrl.isEmpty ? null : tailscaleUrl,
       groupName: groupName,
       createdAt: DateTime.now(),
       status: 'online',

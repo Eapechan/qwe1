@@ -19,6 +19,7 @@ mixin _$Server {
   String get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String get agentUrl => throw _privateConstructorUsedError;
+  String? get tailscaleUrl => throw _privateConstructorUsedError;
   String get groupName => throw _privateConstructorUsedError;
   bool get readOnly => throw _privateConstructorUsedError;
   String get fingerprintHash => throw _privateConstructorUsedError;
@@ -42,6 +43,7 @@ abstract class $ServerCopyWith<$Res> {
       {String id,
       String name,
       String agentUrl,
+      String? tailscaleUrl,
       String groupName,
       bool readOnly,
       String fingerprintHash,
@@ -69,6 +71,7 @@ class _$ServerCopyWithImpl<$Res, $Val extends Server>
     Object? id = null,
     Object? name = null,
     Object? agentUrl = null,
+    Object? tailscaleUrl = freezed,
     Object? groupName = null,
     Object? readOnly = null,
     Object? fingerprintHash = null,
@@ -92,6 +95,10 @@ class _$ServerCopyWithImpl<$Res, $Val extends Server>
           ? _value.agentUrl
           : agentUrl // ignore: cast_nullable_to_non_nullable
               as String,
+      tailscaleUrl: freezed == tailscaleUrl
+          ? _value.tailscaleUrl
+          : tailscaleUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       groupName: null == groupName
           ? _value.groupName
           : groupName // ignore: cast_nullable_to_non_nullable
@@ -143,6 +150,7 @@ abstract class _$$ServerImplCopyWith<$Res> implements $ServerCopyWith<$Res> {
       {String id,
       String name,
       String agentUrl,
+      String? tailscaleUrl,
       String groupName,
       bool readOnly,
       String fingerprintHash,
@@ -168,6 +176,7 @@ class __$$ServerImplCopyWithImpl<$Res>
     Object? id = null,
     Object? name = null,
     Object? agentUrl = null,
+    Object? tailscaleUrl = freezed,
     Object? groupName = null,
     Object? readOnly = null,
     Object? fingerprintHash = null,
@@ -191,6 +200,10 @@ class __$$ServerImplCopyWithImpl<$Res>
           ? _value.agentUrl
           : agentUrl // ignore: cast_nullable_to_non_nullable
               as String,
+      tailscaleUrl: freezed == tailscaleUrl
+          ? _value.tailscaleUrl
+          : tailscaleUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       groupName: null == groupName
           ? _value.groupName
           : groupName // ignore: cast_nullable_to_non_nullable
@@ -238,6 +251,7 @@ class _$ServerImpl implements _Server {
       {required this.id,
       required this.name,
       required this.agentUrl,
+      this.tailscaleUrl,
       this.groupName = '',
       this.readOnly = false,
       this.fingerprintHash = '',
@@ -255,6 +269,8 @@ class _$ServerImpl implements _Server {
   final String name;
   @override
   final String agentUrl;
+  @override
+  final String? tailscaleUrl;
   @override
   @JsonKey()
   final String groupName;
@@ -288,7 +304,7 @@ class _$ServerImpl implements _Server {
 
   @override
   String toString() {
-    return 'Server(id: $id, name: $name, agentUrl: $agentUrl, groupName: $groupName, readOnly: $readOnly, fingerprintHash: $fingerprintHash, status: $status, deviceId: $deviceId, lastSeenAt: $lastSeenAt, createdAt: $createdAt, agentVersion: $agentVersion, capabilities: $capabilities)';
+    return 'Server(id: $id, name: $name, agentUrl: $agentUrl, tailscaleUrl: $tailscaleUrl, groupName: $groupName, readOnly: $readOnly, fingerprintHash: $fingerprintHash, status: $status, deviceId: $deviceId, lastSeenAt: $lastSeenAt, createdAt: $createdAt, agentVersion: $agentVersion, capabilities: $capabilities)';
   }
 
   @override
@@ -300,6 +316,8 @@ class _$ServerImpl implements _Server {
             (identical(other.name, name) || other.name == name) &&
             (identical(other.agentUrl, agentUrl) ||
                 other.agentUrl == agentUrl) &&
+            (identical(other.tailscaleUrl, tailscaleUrl) ||
+                other.tailscaleUrl == tailscaleUrl) &&
             (identical(other.groupName, groupName) ||
                 other.groupName == groupName) &&
             (identical(other.readOnly, readOnly) ||
@@ -325,6 +343,7 @@ class _$ServerImpl implements _Server {
       id,
       name,
       agentUrl,
+      tailscaleUrl,
       groupName,
       readOnly,
       fingerprintHash,
@@ -347,6 +366,7 @@ abstract class _Server implements Server {
       {required final String id,
       required final String name,
       required final String agentUrl,
+      final String? tailscaleUrl,
       final String groupName,
       final bool readOnly,
       final String fingerprintHash,
@@ -363,6 +383,8 @@ abstract class _Server implements Server {
   String get name;
   @override
   String get agentUrl;
+  @override
+  String? get tailscaleUrl;
   @override
   String get groupName;
   @override

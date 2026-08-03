@@ -24,6 +24,12 @@ class $ServersTable extends Servers with TableInfo<$ServersTable, Server> {
   late final GeneratedColumn<String> agentUrl = GeneratedColumn<String>(
       'agent_url', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tailscaleUrlMeta =
+      const VerificationMeta('tailscaleUrl');
+  @override
+  late final GeneratedColumn<String> tailscaleUrl = GeneratedColumn<String>(
+      'tailscale_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _groupNameMeta =
       const VerificationMeta('groupName');
   @override
@@ -98,6 +104,7 @@ class $ServersTable extends Servers with TableInfo<$ServersTable, Server> {
         id,
         name,
         agentUrl,
+        tailscaleUrl,
         groupName,
         readOnly,
         fingerprintHash,
@@ -134,6 +141,12 @@ class $ServersTable extends Servers with TableInfo<$ServersTable, Server> {
           agentUrl.isAcceptableOrUnknown(data['agent_url']!, _agentUrlMeta));
     } else if (isInserting) {
       context.missing(_agentUrlMeta);
+    }
+    if (data.containsKey('tailscale_url')) {
+      context.handle(
+          _tailscaleUrlMeta,
+          tailscaleUrl.isAcceptableOrUnknown(
+              data['tailscale_url']!, _tailscaleUrlMeta));
     }
     if (data.containsKey('group_name')) {
       context.handle(_groupNameMeta,
@@ -194,6 +207,8 @@ class $ServersTable extends Servers with TableInfo<$ServersTable, Server> {
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       agentUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}agent_url'])!,
+      tailscaleUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tailscale_url']),
       groupName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}group_name'])!,
       readOnly: attachedDatabase.typeMapping
@@ -225,6 +240,7 @@ class Server extends DataClass implements Insertable<Server> {
   final String id;
   final String name;
   final String agentUrl;
+  final String? tailscaleUrl;
   final String groupName;
   final bool readOnly;
   final String fingerprintHash;
@@ -238,6 +254,7 @@ class Server extends DataClass implements Insertable<Server> {
       {required this.id,
       required this.name,
       required this.agentUrl,
+      this.tailscaleUrl,
       required this.groupName,
       required this.readOnly,
       required this.fingerprintHash,
@@ -253,6 +270,9 @@ class Server extends DataClass implements Insertable<Server> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['agent_url'] = Variable<String>(agentUrl);
+    if (!nullToAbsent || tailscaleUrl != null) {
+      map['tailscale_url'] = Variable<String>(tailscaleUrl);
+    }
     map['group_name'] = Variable<String>(groupName);
     map['read_only'] = Variable<bool>(readOnly);
     map['fingerprint_hash'] = Variable<String>(fingerprintHash);
@@ -272,6 +292,9 @@ class Server extends DataClass implements Insertable<Server> {
       id: Value(id),
       name: Value(name),
       agentUrl: Value(agentUrl),
+      tailscaleUrl: tailscaleUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tailscaleUrl),
       groupName: Value(groupName),
       readOnly: Value(readOnly),
       fingerprintHash: Value(fingerprintHash),
@@ -293,6 +316,7 @@ class Server extends DataClass implements Insertable<Server> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       agentUrl: serializer.fromJson<String>(json['agentUrl']),
+      tailscaleUrl: serializer.fromJson<String?>(json['tailscaleUrl']),
       groupName: serializer.fromJson<String>(json['groupName']),
       readOnly: serializer.fromJson<bool>(json['readOnly']),
       fingerprintHash: serializer.fromJson<String>(json['fingerprintHash']),
@@ -311,6 +335,7 @@ class Server extends DataClass implements Insertable<Server> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'agentUrl': serializer.toJson<String>(agentUrl),
+      'tailscaleUrl': serializer.toJson<String?>(tailscaleUrl),
       'groupName': serializer.toJson<String>(groupName),
       'readOnly': serializer.toJson<bool>(readOnly),
       'fingerprintHash': serializer.toJson<String>(fingerprintHash),
@@ -327,6 +352,7 @@ class Server extends DataClass implements Insertable<Server> {
           {String? id,
           String? name,
           String? agentUrl,
+          Value<String?> tailscaleUrl = const Value.absent(),
           String? groupName,
           bool? readOnly,
           String? fingerprintHash,
@@ -340,6 +366,8 @@ class Server extends DataClass implements Insertable<Server> {
         id: id ?? this.id,
         name: name ?? this.name,
         agentUrl: agentUrl ?? this.agentUrl,
+        tailscaleUrl:
+            tailscaleUrl.present ? tailscaleUrl.value : this.tailscaleUrl,
         groupName: groupName ?? this.groupName,
         readOnly: readOnly ?? this.readOnly,
         fingerprintHash: fingerprintHash ?? this.fingerprintHash,
@@ -355,6 +383,9 @@ class Server extends DataClass implements Insertable<Server> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       agentUrl: data.agentUrl.present ? data.agentUrl.value : this.agentUrl,
+      tailscaleUrl: data.tailscaleUrl.present
+          ? data.tailscaleUrl.value
+          : this.tailscaleUrl,
       groupName: data.groupName.present ? data.groupName.value : this.groupName,
       readOnly: data.readOnly.present ? data.readOnly.value : this.readOnly,
       fingerprintHash: data.fingerprintHash.present
@@ -378,6 +409,7 @@ class Server extends DataClass implements Insertable<Server> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('agentUrl: $agentUrl, ')
+          ..write('tailscaleUrl: $tailscaleUrl, ')
           ..write('groupName: $groupName, ')
           ..write('readOnly: $readOnly, ')
           ..write('fingerprintHash: $fingerprintHash, ')
@@ -396,6 +428,7 @@ class Server extends DataClass implements Insertable<Server> {
       id,
       name,
       agentUrl,
+      tailscaleUrl,
       groupName,
       readOnly,
       fingerprintHash,
@@ -412,6 +445,7 @@ class Server extends DataClass implements Insertable<Server> {
           other.id == this.id &&
           other.name == this.name &&
           other.agentUrl == this.agentUrl &&
+          other.tailscaleUrl == this.tailscaleUrl &&
           other.groupName == this.groupName &&
           other.readOnly == this.readOnly &&
           other.fingerprintHash == this.fingerprintHash &&
@@ -427,6 +461,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> agentUrl;
+  final Value<String?> tailscaleUrl;
   final Value<String> groupName;
   final Value<bool> readOnly;
   final Value<String> fingerprintHash;
@@ -441,6 +476,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.agentUrl = const Value.absent(),
+    this.tailscaleUrl = const Value.absent(),
     this.groupName = const Value.absent(),
     this.readOnly = const Value.absent(),
     this.fingerprintHash = const Value.absent(),
@@ -456,6 +492,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
     required String id,
     required String name,
     required String agentUrl,
+    this.tailscaleUrl = const Value.absent(),
     this.groupName = const Value.absent(),
     this.readOnly = const Value.absent(),
     this.fingerprintHash = const Value.absent(),
@@ -474,6 +511,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? agentUrl,
+    Expression<String>? tailscaleUrl,
     Expression<String>? groupName,
     Expression<bool>? readOnly,
     Expression<String>? fingerprintHash,
@@ -489,6 +527,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (agentUrl != null) 'agent_url': agentUrl,
+      if (tailscaleUrl != null) 'tailscale_url': tailscaleUrl,
       if (groupName != null) 'group_name': groupName,
       if (readOnly != null) 'read_only': readOnly,
       if (fingerprintHash != null) 'fingerprint_hash': fingerprintHash,
@@ -506,6 +545,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
       {Value<String>? id,
       Value<String>? name,
       Value<String>? agentUrl,
+      Value<String?>? tailscaleUrl,
       Value<String>? groupName,
       Value<bool>? readOnly,
       Value<String>? fingerprintHash,
@@ -520,6 +560,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
       id: id ?? this.id,
       name: name ?? this.name,
       agentUrl: agentUrl ?? this.agentUrl,
+      tailscaleUrl: tailscaleUrl ?? this.tailscaleUrl,
       groupName: groupName ?? this.groupName,
       readOnly: readOnly ?? this.readOnly,
       fingerprintHash: fingerprintHash ?? this.fingerprintHash,
@@ -544,6 +585,9 @@ class ServersCompanion extends UpdateCompanion<Server> {
     }
     if (agentUrl.present) {
       map['agent_url'] = Variable<String>(agentUrl.value);
+    }
+    if (tailscaleUrl.present) {
+      map['tailscale_url'] = Variable<String>(tailscaleUrl.value);
     }
     if (groupName.present) {
       map['group_name'] = Variable<String>(groupName.value);
@@ -584,6 +628,7 @@ class ServersCompanion extends UpdateCompanion<Server> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('agentUrl: $agentUrl, ')
+          ..write('tailscaleUrl: $tailscaleUrl, ')
           ..write('groupName: $groupName, ')
           ..write('readOnly: $readOnly, ')
           ..write('fingerprintHash: $fingerprintHash, ')
@@ -2965,6 +3010,7 @@ typedef $$ServersTableCreateCompanionBuilder = ServersCompanion Function({
   required String id,
   required String name,
   required String agentUrl,
+  Value<String?> tailscaleUrl,
   Value<String> groupName,
   Value<bool> readOnly,
   Value<String> fingerprintHash,
@@ -2980,6 +3026,7 @@ typedef $$ServersTableUpdateCompanionBuilder = ServersCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String> agentUrl,
+  Value<String?> tailscaleUrl,
   Value<String> groupName,
   Value<bool> readOnly,
   Value<String> fingerprintHash,
@@ -3012,6 +3059,7 @@ class $$ServersTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> agentUrl = const Value.absent(),
+            Value<String?> tailscaleUrl = const Value.absent(),
             Value<String> groupName = const Value.absent(),
             Value<bool> readOnly = const Value.absent(),
             Value<String> fingerprintHash = const Value.absent(),
@@ -3027,6 +3075,7 @@ class $$ServersTableTableManager extends RootTableManager<
             id: id,
             name: name,
             agentUrl: agentUrl,
+            tailscaleUrl: tailscaleUrl,
             groupName: groupName,
             readOnly: readOnly,
             fingerprintHash: fingerprintHash,
@@ -3042,6 +3091,7 @@ class $$ServersTableTableManager extends RootTableManager<
             required String id,
             required String name,
             required String agentUrl,
+            Value<String?> tailscaleUrl = const Value.absent(),
             Value<String> groupName = const Value.absent(),
             Value<bool> readOnly = const Value.absent(),
             Value<String> fingerprintHash = const Value.absent(),
@@ -3057,6 +3107,7 @@ class $$ServersTableTableManager extends RootTableManager<
             id: id,
             name: name,
             agentUrl: agentUrl,
+            tailscaleUrl: tailscaleUrl,
             groupName: groupName,
             readOnly: readOnly,
             fingerprintHash: fingerprintHash,
@@ -3086,6 +3137,11 @@ class $$ServersTableFilterComposer
 
   ColumnFilters<String> get agentUrl => $state.composableBuilder(
       column: $state.table.agentUrl,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get tailscaleUrl => $state.composableBuilder(
+      column: $state.table.tailscaleUrl,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -3236,6 +3292,11 @@ class $$ServersTableOrderingComposer
 
   ColumnOrderings<String> get agentUrl => $state.composableBuilder(
       column: $state.table.agentUrl,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get tailscaleUrl => $state.composableBuilder(
+      column: $state.table.tailscaleUrl,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

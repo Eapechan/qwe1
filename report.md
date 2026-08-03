@@ -86,24 +86,24 @@ you are connecting to it.
 
 ---
 
-## Correct Pairing Procedure (test mode)
+## Correct Pairing Procedure
 
-Run the agent, then generate a fresh token in a second terminal:
+Run the agent, then generate a fresh token + QR in a second terminal:
 
 ```bash
 # terminal 1 — run the agent
 ./qwe1-agent --config config.yaml
 
-# terminal 2 — generate a fresh single-use token
-./qwe1-agent --enroll --config config.yaml
+# terminal 2 — generate a token + QR code
+./token.sh
 ```
 
-Then in the app enter:
+Then in the app tap **Scan QR Code** and scan the terminal/QR image, or enter manually:
 - Server URL: `http://<server-lan-ip>:9443`
 - Enrollment token: the `qwe1-...` printed by `--enroll`
 
-The token is **single-use**. If a pairing attempt fails or you re-add the server,
-generate a brand-new token with `--enroll` — do not reuse an old one.
+The token is valid for **1 hour** and can be used by multiple devices. After 1 hour,
+run `./token.sh` again to generate a fresh token.
 
 ---
 
@@ -114,9 +114,15 @@ production install, which serves real HTTPS on the same port. Follow the manual
 production steps in [GETTING_STARTED.md](GETTING_STARTED.md): generate
 self-signed TLS certs, point `tlsCertPath`/`tlsKeyPath` at them in
 `/etc/qwe1/config.yaml`, install to `/etc/qwe1/`, and register a systemd service.
-The agent prints the server fingerprint — enter it and a fresh enrollment token
-(`qwe1-agent --enroll --config /etc/qwe1/config.yaml`) in the app to pair over
+Run `./token.sh` to generate a token + QR — scan it with the app to pair over
 HTTPS securely.
+
+## Tailscale Support
+
+The app supports Tailscale VPN for remote access. The QR code carries both your
+LAN URL and Tailscale URL, so one scan works at home and away. Set
+`advertiseTailscaleUrl` in `config.yaml` to your server's Tailscale IP
+(e.g. `http://100.x.y.z:9443`), re-run `./token.sh`, and scan the new QR.
 
 ---
 

@@ -154,7 +154,12 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: InkWell(
         onTap: isDir
-            ? () => setState(() => _currentPath = item.path)
+            ? () => setState(() {
+                  final basePath = _currentPath.endsWith('/')
+                      ? _currentPath.substring(0, _currentPath.length - 1)
+                      : _currentPath;
+                  _currentPath = '$basePath/${item.name}';
+                })
             : () => _showFileActions(context, item),
         borderRadius: BorderRadius.circular(20),
         child: Padding(

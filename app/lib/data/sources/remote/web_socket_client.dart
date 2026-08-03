@@ -86,16 +86,19 @@ class WebSocketClient {
 
   void _onMessage(dynamic message) {
     if (message is String) {
-      try {
-        final data = jsonDecode(message) as Map<String, dynamic>;
-        final channel = data['ch'] as String?;
-        final payload = data['data'];
+      // The Go agent batches multiple newline-separated JSON objects per frame.
+      final lines = message.split('\n');
+      for (final line in lines) {
+        if (line.isEmpty) continue;
+        try {
+          final data = jsonDecode(line) as Map<String, dynamic>;
+          final channel = data['ch'] as String?;
+          final payload = data['data'];
 
-        if (channel != null && _channels.containsKey(channel)) {
-          _channels[channel]!.add(payload);
-        }
-      } catch (e) {
-        // Ignore parse errors for binary frames
+          if (channel != null && _channels.containsKey(channel)) {
+            _channels[channel]!.add(payload);
+          }
+        } catch (_) {}
       }
     } else if (message is Uint8List) {
       // Binary frame - could be terminal output

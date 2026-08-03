@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/core/utils/validators.dart';
+import 'package:qwe1/core/utils/qr_enrollment.dart';
+import 'package:qwe1/ui/screens/qr_scan_screen.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 
 class AddServerScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
 
   bool _isLoading = false;
   String? _error;
+  String _tailscaleUrl = '';
 
   @override
   void dispose() {
@@ -29,6 +32,47 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
     _tokenController.dispose();
     _groupController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanQr() async {
+    final data = await Navigator.of(context).push<QrEnrollmentData>(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (data == null || !mounted) return;
+
+    // Show editable-name dialog, then auto-submit.
+    final nameCtrl = TextEditingController(text: data.name);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server Name'),
+        content: TextField(
+          controller: nameCtrl,
+          decoration: const InputDecoration(hintText: 'e.g., my-server'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
+            child: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result.isEmpty || !mounted) return;
+
+    setState(() {
+      _nameController.text = result;
+      _urlController.text = data.agentUrl;
+      _tokenController.text = data.token;
+      _tailscaleUrl = data.tailscaleUrl;
+      _isLoading = true;
+      _error = null;
+    });
+
+    await _addServer();
   }
 
   @override
@@ -44,6 +88,42 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Scan QR button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _scanQr,
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                  label: const Text('Scan QR Code'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or enter manually',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.onSurfaceMuted,
+                          ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+
               // Instructions card
               Container(
                 padding: const EdgeInsets.all(16),
@@ -89,7 +169,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Run "qwe1-agent --enroll" on your server to get a token.',
+                            'Run "./token.sh" or "qwe1-agent --enroll" on your server to get a QR code or token.',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: context.onSurfaceMuted,
                                 ),
@@ -198,7 +278,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
                         child: Text(
                           _error!,
                           style: TextStyle(
-                        color: context.danger,
+                            color: context.danger,
                             fontSize: 13,
                           ),
                         ),
@@ -238,6 +318,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
             name: _nameController.text.trim(),
             agentUrl: _urlController.text.trim(),
             enrollmentToken: _tokenController.text.trim(),
+            tailscaleUrl: _tailscaleUrl,
             groupName: _groupController.text.trim(),
           );
 

@@ -159,7 +159,10 @@ func (c *WSClient) readPump() {
 			if op, ok := msg["op"].(string); ok {
 				switch op {
 				case "ping":
-					c.send <- []byte(`{"op":"pong"}`)
+					select {
+					case c.send <- []byte(`{"op":"pong"}`):
+					default:
+					}
 				case "subscribe":
 					if ch, ok := msg["channel"].(string); ok {
 						c.mu.Lock()

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -73,6 +74,15 @@ func (s *Signer) ValidateAccessToken(token string) (string, error) {
 	}
 
 	deviceID := parts2[0]
+
+	exp, err := strconv.ParseInt(parts2[1], 10, 64)
+	if err != nil {
+		return "", ErrTokenInvalid
+	}
+	if time.Now().Unix() > exp {
+		return "", ErrTokenExpired
+	}
+
 	return deviceID, nil
 }
 

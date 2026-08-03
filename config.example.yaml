@@ -1,15 +1,22 @@
 # qwe1 agent production configuration
 #
-# Copy this file to /etc/qwe1/config.yaml on your Linux server, then edit the
-# values to match your environment. See scripts/setup-production.sh for a
-# guided install (certs, systemd, firewalld).
+# Copy this file to your server as config.yaml, then edit the values to match
+# your environment. For the manual setup flow see GETTING_STARTED.md.
+#
+# For quick HTTP (non-TLS) testing, leave tlsCertPath/tlsKeyPath empty ("").
 
 serverName: my-server
 listenHost: 0.0.0.0
 listenPort: 9443
 
-# TLS — REQUIRED for production. Generate certs with scripts/setup-production.sh
-# or your own CA/Let's Encrypt certs.
+# Advertised URL for the QR code (optional).
+# Leave empty to auto-detect LAN IP. Set to your Tailscale IP for
+# remote access: http://100.x.y.z:9443 or https://my-server.tailnet.ts.net
+advertiseUrl: ""
+advertiseTailscaleUrl: ""
+
+# TLS — REQUIRED for production HTTPS. Generate self-signed certs with
+# openssl (see GETTING_STARTED.md) or use your own CA/Let's Encrypt certs.
 tlsCertPath: /etc/qwe1/certs/cert.pem
 tlsKeyPath: /etc/qwe1/certs/key.pem
 
@@ -20,6 +27,8 @@ auth:
   accessTokenTTL: 900
   # Refresh token lifetime in seconds (30d).
   refreshTokenTTL: 2592000
+  # Enrollment token lifetime in seconds (1 hour).
+  enrollmentTTL: 3600
   # Failed enrollment attempts before lockout.
   maxAttempts: 5
   # Lockout duration in seconds (30m).

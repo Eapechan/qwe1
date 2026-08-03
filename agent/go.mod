@@ -2,11 +2,14 @@ module github.com/qwe1/qwe1/agent
 
 go 1.25.0
 
+toolchain go1.26.5
+
 require (
 	github.com/creack/pty v1.1.21
 	github.com/docker/docker v25.0.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.26.6
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	gopkg.in/yaml.v3 v3.0.1
 	nhooyr.io/websocket v1.8.17
 )

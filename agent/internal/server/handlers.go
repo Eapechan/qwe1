@@ -55,12 +55,10 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 
 	hash := auth.HashToken(req.EnrollmentToken)
 	enroll, ok := s.auth.EnrollByHash(hash)
-	if !ok || enroll.Used || time.Now().After(enroll.ExpiresAt) {
+	if !ok || time.Now().After(enroll.ExpiresAt) {
 		s.respondError(w, http.StatusUnauthorized, "INVALID_ENROLLMENT", "Invalid or expired enrollment token")
 		return
 	}
-
-	s.auth.MarkEnrollmentUsed(hash)
 
 	deviceID := generateID()
 	now := time.Now().UTC()
@@ -82,7 +80,10 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.auth.AddRefresh(auth.HashToken(refreshToken), deviceID, now.Add(refreshTokenTTL))
-	s.auth.Persist()
+	if err := s.auth.Persist(); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
+		return
+	}
 
 	fingerprint := ""
 	cm := certs.NewCertManager(s.cfg.TLSCertPath, s.cfg.TLSKeyPath)
@@ -124,14 +125,20 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	if refresh.Used {
 		s.auth.RevokeDevice(refresh.DeviceID)
-		s.auth.Persist()
+		if err := s.auth.Persist(); err != nil {
+			s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
+			return
+		}
 		s.respondError(w, http.StatusUnauthorized, "TOKEN_REUSE", "Refresh token reuse detected, device revoked")
 		return
 	}
 
 	if time.Now().After(refresh.ExpiresAt) {
 		s.auth.RevokeDevice(refresh.DeviceID)
-		s.auth.Persist()
+		if err := s.auth.Persist(); err != nil {
+			s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
+			return
+		}
 		s.respondError(w, http.StatusUnauthorized, "TOKEN_EXPIRED", "Refresh token expired")
 		return
 	}
@@ -156,7 +163,10 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC()
 	s.auth.AddRefresh(auth.HashToken(newRefreshToken), deviceID, now.Add(refreshTokenTTL))
-	s.auth.Persist()
+	if err := s.auth.Persist(); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
+		return
+	}
 
 	s.respondJSON(w, http.StatusOK, map[string]interface{}{
 		"accessToken":       accessToken,
@@ -175,7 +185,10 @@ func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.auth.RevokeDevice(deviceID.(string))
-	s.auth.Persist()
+	if err := s.auth.Persist(); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
+		return
+	}
 	s.respondJSON(w, http.StatusNoContent, nil)
 }
 
@@ -237,6 +250,10 @@ func (s *Server) handleDockerContainers(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleDockerStart(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	if err := s.docker.Start(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
@@ -246,6 +263,10 @@ func (s *Server) handleDockerStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerStop(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	if err := s.docker.Stop(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
@@ -255,6 +276,10 @@ func (s *Server) handleDockerStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	if err := s.docker.Restart(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
@@ -264,6 +289,10 @@ func (s *Server) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerPause(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	if err := s.docker.Pause(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
@@ -273,6 +302,10 @@ func (s *Server) handleDockerPause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerUnpause(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	if err := s.docker.Unpause(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
@@ -282,6 +315,10 @@ func (s *Server) handleDockerUnpause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	var req struct {
 		Signal string `json:"signal"`
@@ -296,6 +333,10 @@ func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerRemove(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	force := r.URL.Query().Get("force") == "true"
 
@@ -307,6 +348,10 @@ func (s *Server) handleDockerRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerInspect(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	info, err := s.docker.Inspect(r.Context(), id)
 	if err != nil {
@@ -317,12 +362,19 @@ func (s *Server) handleDockerInspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerLogs(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
 	id := r.PathValue("id")
 	tail := 200
 	if t := r.URL.Query().Get("tail"); t != "" {
 		if parsed, err := strconv.Atoi(t); err == nil {
 			tail = parsed
 		}
+	}
+	if tail > 10000 {
+		tail = 10000
 	}
 
 	var logs []docker.LogLine
@@ -542,7 +594,7 @@ func (s *Server) handleFsRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(int64(s.cfg.Files.MaxUpload)); err != nil {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		s.respondError(w, http.StatusBadRequest, "INVALID_UPLOAD", err.Error())
 		return
 	}

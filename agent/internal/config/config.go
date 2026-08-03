@@ -9,8 +9,10 @@ import (
 type Config struct {
 	ServerName  string `yaml:"serverName"`
 	ListenHost  string `yaml:"listenHost"`
-	ListenPort  int    `yaml:"listenPort"`
-	TLSCertPath string `yaml:"tlsCertPath"`
+	ListenPort            int    `yaml:"listenPort"`
+	AdvertiseURL          string `yaml:"advertiseUrl"`
+	AdvertiseTailscaleURL string `yaml:"advertiseTailscaleUrl"`
+	TLSCertPath           string `yaml:"tlsCertPath"`
 	TLSKeyPath  string `yaml:"tlsKeyPath"`
 
 	Auth     AuthConfig     `yaml:"auth"`
@@ -27,6 +29,7 @@ type AuthConfig struct {
 	RefreshTokenTTL int `yaml:"refreshTokenTTL"`
 	MaxAttempts     int `yaml:"maxAttempts"`
 	LockoutDuration int `yaml:"lockoutDuration"`
+	EnrollmentTTL   int `yaml:"enrollmentTTL"`
 }
 
 type DockerConfig struct {
@@ -91,6 +94,7 @@ func defaultConfig() *Config {
 			RefreshTokenTTL: 2592000,
 			MaxAttempts:     5,
 			LockoutDuration: 1800,
+			EnrollmentTTL:   3600,
 		},
 		Docker: DockerConfig{
 			SocketPath: "/var/run/docker.sock",

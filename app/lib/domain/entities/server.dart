@@ -8,6 +8,7 @@ class Server with _$Server {
     required String id,
     required String name,
     required String agentUrl,
+    String? tailscaleUrl,
     @Default('') String groupName,
     @Default(false) bool readOnly,
     @Default('') String fingerprintHash,

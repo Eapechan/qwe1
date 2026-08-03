@@ -155,7 +155,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("PUT /alerts/thresholds", s.authMiddleware(s.handleAlertThresholdsUpdate))
 
 	// WebSocket
-	mux.HandleFunc("GET /ws", s.handleWebSocket)
+	mux.HandleFunc("GET /ws", s.authMiddleware(s.handleWebSocket))
 
 	// Audit
 	mux.HandleFunc("GET /audit", s.authMiddleware(s.handleAudit))

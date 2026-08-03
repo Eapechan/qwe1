@@ -9,6 +9,7 @@ abstract class ServerRepository {
     required String name,
     required String agentUrl,
     required String enrollmentToken,
+    String tailscaleUrl,
     String groupName,
   });
   Future<Server> updateServer(Server server);

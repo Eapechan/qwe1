@@ -49,7 +49,7 @@ class ErrorMapper {
             : null;
         if (code == 'INVALID_ENROLLMENT') {
           return const AuthException(
-            'This enrollment token was already used. Generate a fresh one on the server with ./scripts/dev.sh (or qwe1-agent --enroll).',
+            'Enrollment token expired or invalid. Generate a fresh one on the server with ./token.sh (or qwe1-agent --enroll).',
           );
         }
         return const AuthException('Authentication required. Please re-enroll.');

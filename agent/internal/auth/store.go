@@ -248,6 +248,22 @@ func (s *Store) AddDevice(id, name string, createdAt time.Time) {
 	s.fs.Devices = append(s.fs.Devices, Device{ID: id, Name: name, CreatedAt: createdAt, LastSeen: createdAt})
 }
 
+// IsDeviceRevoked returns true if ALL refresh records for the device are revoked.
+func (s *Store) IsDeviceRevoked(deviceID string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var found bool
+	for _, r := range s.fs.Refresh {
+		if r.DeviceID == deviceID {
+			found = true
+			if !r.Revoked {
+				return false
+			}
+		}
+	}
+	return found
+}
+
 func (s *Store) touchDeviceLocked(deviceID string) {
 	for i := range s.fs.Devices {
 		if s.fs.Devices[i].ID == deviceID {

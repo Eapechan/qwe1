@@ -1,0 +1,48 @@
+# qwe1 agent configuration for manual HTTP (non-TLS) testing
+#
+# Run the agent and generate a fresh enrollment token from this repo:
+#   ./agent/qwe1-agent --config config.yaml
+#   ./token.sh
+#
+# For production HTTPS, set tlsCertPath/tlsKeyPath to your certs and use
+# https://<server-ip>:9443 in the app.
+
+serverName: my-server
+listenHost: 0.0.0.0
+listenPort: 9443
+tlsCertPath: ""
+tlsKeyPath: ""
+
+# Advertised URL for the QR code (optional).
+# Leave empty to auto-detect LAN IP. Set to your Tailscale IP for
+# remote access: http://100.x.y.z:9443
+advertiseUrl: ""
+advertiseTailscaleUrl: ""
+
+auth:
+  tokenLength: 16
+  accessTokenTTL: 900
+  refreshTokenTTL: 2592000
+  enrollmentTTL: 3600
+
+docker:
+  enabled: false
+  socketPath: /var/run/docker.sock
+
+host:
+  metricsInterval: 5
+  temperaturePath: /sys/class/thermal
+
+terminal:
+  maxSessions: 4
+  idleTimeout: 300
+
+files:
+  allowedRoots:
+    - /home
+    - /var/log
+  maxUpload: 524288000
+
+alerts:
+  enabled: false
+  bufferSize: 1000

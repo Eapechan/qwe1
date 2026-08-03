@@ -11,6 +11,7 @@ class Servers extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get agentUrl => text()();
+  TextColumn get tailscaleUrl => text().nullable()();
   TextColumn get groupName => text().withDefault(const Constant(''))();
   BoolColumn get readOnly => boolean().withDefault(const Constant(false))();
   TextColumn get fingerprintHash => text().withDefault(const Constant(''))();
@@ -113,13 +114,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
-          // Future migrations go here
+          if (from < 2) {
+            await m.addColumn(servers, servers.tailscaleUrl);
+          }
         },
       );
 

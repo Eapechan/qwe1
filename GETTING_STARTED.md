@@ -164,9 +164,9 @@ Enter this token in the qwe1 app to pair
 with this server.
 ```
 
-Copy the **Enrollment Token** — you'll paste it into the app.
+Copy the **Enrollment Token** — you'll paste it into the app, or scan the QR code.
 
-> **Note**: The token is a one-time-use code. Once a device enrolls with it, the token is marked as used. Generate a new one for each device.
+> **Note**: The token is valid for **1 hour** (`auth.enrollmentTTL` in config) and can be used by multiple devices within that window. After 1 hour, run `./token.sh` or `qwe1-agent --enroll` again.
 
 ### Local development (manual, no scripts)
 
@@ -177,13 +177,24 @@ Run the agent in one terminal and generate a fresh token in a second terminal:
 cd qwe1
 ./qwe1-agent --config config.yaml
 
-# terminal 2 — generate a fresh single-use enrollment token
-./qwe1-agent --enroll --config config.yaml
+# terminal 2 — generate a fresh enrollment token + QR code
+./token.sh
 ```
 
-Copy the printed token into the app (Server URL `http://YOUR_SERVER_IP:9443`).
-The token is single-use: if the enrollment fails after the server accepted it,
-generate a new token with `--enroll` again — never reuse an old one.
+Copy the printed token into the app (Server URL `http://YOUR_SERVER_IP:9443`), or scan the QR code from the app's "Add Server" screen.
+
+### Tailscale (remote access)
+
+When you're away from home, the app connects via Tailscale VPN. The QR code carries **both** your LAN URL and your Tailscale URL, so one scan works everywhere.
+
+1. Install Tailscale on both phone and server.
+2. Find your server's Tailscale IP: `tailscale ip -4` on the server.
+3. Set `advertiseTailscaleUrl` in `config.yaml`:
+   ```yaml
+   advertiseTailscaleUrl: "http://100.x.y.z:9443"
+   ```
+4. Re-run `./token.sh` — the new QR includes both addresses.
+5. Scan with the app. At home it uses the LAN URL; away from home it automatically falls back to the Tailscale URL.
 
 ### Production install (TLS + systemd)
 
@@ -419,8 +430,8 @@ cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=amd64 go build -o bin/qwe1-agent-
 # Go agent (cross-compile for Linux arm64)
 cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
 
-# Generate enrollment token (while agent runs)
-./qwe1-agent --enroll --config ~/config.yaml
+# Generate enrollment token + QR (while agent runs)
+./token.sh
 
 # Flutter APK
 export JAVA_HOME=~/java/current

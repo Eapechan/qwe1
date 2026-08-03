@@ -81,6 +81,12 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, r, http.StatusUnauthorized, code, "authentication failed", nil)
 			return
 		}
+
+		if s.auth.IsDeviceRevoked(deviceID) {
+			writeErr(w, r, http.StatusUnauthorized, "DEVICE_REVOKED", "device has been revoked", nil)
+			return
+		}
+
 		next.ServeHTTP(w, r.WithContext(withValue(r.Context(), ctxDeviceID, deviceID)))
 	}
 }

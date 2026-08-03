@@ -24,6 +24,7 @@ class ServerRepositoryImpl implements ServerRepository {
   final _clients = <String, ApiClient>{};
   final _wsClients = <String, WebSocketClient>{};
   final _metricsControllers = <String, StreamController<HostMetrics>>{};
+  Completer<String?>? _refreshLock;
 
   @override
   Future<List<Server>> getServers() async {
@@ -36,6 +37,7 @@ class ServerRepositoryImpl implements ServerRepository {
       id: row.id,
       name: row.name,
       agentUrl: row.agentUrl,
+      tailscaleUrl: row.tailscaleUrl,
       groupName: row.groupName,
       readOnly: row.readOnly,
       fingerprintHash: row.fingerprintHash,
@@ -58,6 +60,7 @@ class ServerRepositoryImpl implements ServerRepository {
       id: row.id,
       name: row.name,
       agentUrl: row.agentUrl,
+      tailscaleUrl: row.tailscaleUrl,
       groupName: row.groupName,
       readOnly: row.readOnly,
       fingerprintHash: row.fingerprintHash,
@@ -77,6 +80,7 @@ class ServerRepositoryImpl implements ServerRepository {
     required String name,
     required String agentUrl,
     required String enrollmentToken,
+    String tailscaleUrl = '',
     String groupName = '',
   }) async {
     // If a server for this agentUrl already exists (e.g. a previous enroll
@@ -109,26 +113,22 @@ class ServerRepositoryImpl implements ServerRepository {
     final serverId = const Uuid().v4();
     final now = DateTime.now();
 
-    // IMPORTANT: the enrollment token is single-use and has just been consumed
-    // server-side. Persist every credential BEFORE any further step that could
-    // throw, so a failure here never leaves the token wasted.
-    // 1. Persist tokens first (secure storage) — needs only the serverId.
+    // Persist every credential BEFORE any further step that could throw,
+    // so a failure here never leaves the token wasted.
     await secureStorage.saveAccessToken(serverId, accessToken);
     await secureStorage.saveRefreshToken(serverId, refreshToken);
     await secureStorage.saveFingerprint(serverId, serverFingerprint);
 
-    // 2. Persist the server row (database).
+    // Persist the server row (database).
     try {
       await database.insertServer(db.ServersCompanion.insert(
         id: serverId,
         name: name,
         agentUrl: agentUrl,
+        tailscaleUrl: Value(tailscaleUrl.isEmpty ? null : tailscaleUrl),
         createdAt: now,
       ));
     } catch (e) {
-      // A server row could not be created, but the enrollment token is already
-      // spent. Leave the tokens in place under serverId so a later retry (which
-      // will not re-consume a token) can restore this server from them.
       debugPrint('[server] failed to persist server row for $serverId: $e');
       rethrow;
     }
@@ -146,6 +146,16 @@ class ServerRepositoryImpl implements ServerRepository {
       id: Value(server.id),
       name: Value(server.name),
       agentUrl: Value(server.agentUrl),
+      tailscaleUrl: Value(server.tailscaleUrl),
+      groupName: Value(server.groupName),
+      readOnly: Value(server.readOnly),
+      fingerprintHash: Value(server.fingerprintHash),
+      status: Value(server.status),
+      deviceId: Value(server.deviceId),
+      lastSeenAt: Value(server.lastSeenAt),
+      createdAt: Value(server.createdAt),
+      agentVersion: Value(server.agentVersion),
+      capsJson: Value(jsonEncode(server.capabilities)),
     ));
 
     return getServer(server.id);
@@ -274,13 +284,37 @@ class ServerRepositoryImpl implements ServerRepository {
 
   /// Exchanges the stored refresh token for a fresh access token. The server
   /// returns both, so the refresh token is rotated and re-persisted as well.
+  /// Uses a single-flight guard to prevent concurrent refreshes from revoking
+  /// the entire device.
   Future<String?> _refreshAccessToken(String serverId) async {
-    final refreshToken = await secureStorage.getRefreshToken(serverId);
-    if (refreshToken == null || refreshToken.isEmpty) {
-      debugPrint('[server] no refresh token stored for $serverId');
-      return null;
+    // Single-flight: if a refresh is already in progress, wait for it.
+    while (_refreshLock != null) {
+      await _refreshLock!.future;
     }
+    _refreshLock = Completer<String?>();
     try {
+      final refreshToken = await secureStorage.getRefreshToken(serverId);
+      if (refreshToken == null || refreshToken.isEmpty) {
+        debugPrint('[server] no refresh token stored for $serverId');
+        _refreshLock!.complete(null);
+        return null;
+      }
+
+      // Check if token is still valid before attempting refresh.
+      final currentAccess = await secureStorage.getAccessToken(serverId);
+      if (currentAccess != null) {
+        try {
+          final server = await getServer(serverId);
+          final checkClient = ApiClient(baseUrl: server.agentUrl);
+          final statusResp = await checkClient.get('/status');
+          // If status succeeds, the current token is still valid — no refresh needed.
+          _refreshLock!.complete(currentAccess);
+          return currentAccess;
+        } catch (_) {
+          // Status failed — current token is likely expired, proceed with refresh.
+        }
+      }
+
       final server = await getServer(serverId);
       final client = ApiClient(baseUrl: server.agentUrl);
       final response = await client.post('/auth/refresh', data: {
@@ -296,10 +330,14 @@ class ServerRepositoryImpl implements ServerRepository {
       await _ensureClient(serverId, server.agentUrl);
       _clients[serverId]?.setAccessToken(accessToken);
 
+      _refreshLock!.complete(accessToken);
       return accessToken;
     } catch (e) {
       debugPrint('[server] token refresh failed for $serverId: $e');
+      _refreshLock!.complete(null);
       return null;
+    } finally {
+      _refreshLock = null;
     }
   }
 
@@ -318,15 +356,37 @@ class ServerRepositoryImpl implements ServerRepository {
   }
 
   /// Looks up a persisted server by its agent URL, used to reuse an already
-  /// enrolled server instead of consuming another single-use enrollment token.
+  /// enrolled server instead of consuming another enrollment token.
   Future<db.Server?> _findByAgentUrl(String agentUrl) async {
     final rows = await database.getAllServers();
     for (final row in rows) {
-      if (row.agentUrl == agentUrl) {
+      if (row.agentUrl == agentUrl ||
+          (row.tailscaleUrl != null && row.tailscaleUrl == agentUrl)) {
         return row;
       }
     }
     return null;
+  }
+
+  /// Returns the best available URL for a server: the primary URL, or the
+  /// Tailscale URL if the primary is unreachable.
+  Future<String> _resolveUrl(Server server) async {
+    // Try primary URL first.
+    try {
+      final client = ApiClient(baseUrl: server.agentUrl);
+      await client.get('/status');
+      return server.agentUrl;
+    } catch (_) {}
+    // Fallback to Tailscale if available.
+    if (server.tailscaleUrl != null && server.tailscaleUrl!.isNotEmpty) {
+      try {
+        final client = ApiClient(baseUrl: server.tailscaleUrl!);
+        await client.get('/status');
+        return server.tailscaleUrl!;
+      } catch (_) {}
+    }
+    // Return primary as last resort (will fail with a clear error).
+    return server.agentUrl;
   }
 
   Map<String, dynamic> _decodeJson(String json) {
