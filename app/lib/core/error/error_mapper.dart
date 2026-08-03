@@ -44,6 +44,14 @@ class ErrorMapper {
       case 400:
         return ValidationException(message ?? 'Invalid request.');
       case 401:
+        final code = data is Map<String, dynamic>
+            ? (data['error'] is Map ? (data['error'] as Map)['code'] : null)
+            : null;
+        if (code == 'INVALID_ENROLLMENT') {
+          return const AuthException(
+            'Invalid or already-used enrollment token. Generate a new one with token.sh.',
+          );
+        }
         return const AuthException('Authentication required. Please re-enroll.');
       case 403:
         return const AuthException('Access denied. Check server permissions.');

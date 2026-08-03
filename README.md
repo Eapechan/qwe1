@@ -68,6 +68,16 @@ Build the APK or install from releases, then enter your server URL and the enrol
 
 See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
 
+For local development, `dev.sh` starts the agent and prints a fresh enrollment
+token in one terminal (no second terminal needed):
+
+```bash
+./scripts/dev.sh              # start agent + print token (single terminal)
+./scripts/dev.sh --daemon     # run in background (stop with --stop)
+./scripts/dev.sh --test       # run go vet/tests + full E2E API checks
+./scripts/dev.sh --exchange   # also print an exchanged access token
+```
+
 For a production deployment with TLS certs + systemd autostart:
 
 ```bash

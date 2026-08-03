@@ -168,6 +168,28 @@ Copy the **Enrollment Token** — you'll paste it into the app.
 
 > **Note**: The token is a one-time-use code. Once a device enrolls with it, the token is marked as used. Generate a new one for each device.
 
+### Local development (single terminal)
+
+For quick local testing, `scripts/dev.sh` builds the agent, starts it, and prints
+a fresh enrollment token — all in **one terminal**:
+
+```bash
+git clone https://github.com/Eapechan/qwe1.git && cd qwe1
+./scripts/dev.sh
+```
+
+Copy the printed token into the app (Server URL `http://YOUR_SERVER_IP:9443`).
+The script stays attached to the agent logs; press Ctrl-C to stop the agent.
+
+Other modes:
+
+```bash
+./scripts/dev.sh --daemon     # run agent in background (stop with --stop)
+./scripts/dev.sh --exchange   # also print an exchanged access token (consumes it)
+./scripts/dev.sh --test       # go vet + unit tests + full E2E API checks
+./scripts/dev.sh --port 9000  # use a different port
+```
+
 ### Production install (TLS + systemd)
 
 For a real deployment, run the guided installer on your server. It cross-builds the
@@ -413,8 +435,11 @@ cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=amd64 go build -o bin/qwe1-agent-
 # Go agent (cross-compile for Linux arm64)
 cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
 
-# Generate enrollment token
+# Generate enrollment token (while agent runs)
 ./qwe1-agent --enroll --config ~/config.yaml
+
+# Or: dev script runs agent + token in one terminal
+cd /Users/binu/qwe1 && ./scripts/dev.sh
 
 # Flutter APK
 export JAVA_HOME=~/java/current

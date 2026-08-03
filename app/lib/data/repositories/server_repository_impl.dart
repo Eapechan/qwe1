@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:qwe1/data/models/server_dto.dart';
@@ -28,6 +29,10 @@ class ServerRepositoryImpl implements ServerRepository {
   @override
   Future<List<Server>> getServers() async {
     final rows = await database.getAllServers();
+    // Restore authenticated API clients for any persisted servers.
+    for (final row in rows) {
+      await _ensureClient(row.id, row.agentUrl);
+    }
     return rows.map<Server>((row) => Server(
       id: row.id,
       name: row.name,
@@ -112,9 +117,9 @@ class ServerRepositoryImpl implements ServerRepository {
     await secureStorage.saveAccessToken(serverId, accessToken);
     await secureStorage.saveFingerprint(serverId, serverFingerprint);
 
-    // Cache client
-    client.setAccessToken(accessToken);
-    _clients[serverId] = client;
+    // Cache client (restore on refresh/startup via _ensureClient)
+    _clients[serverId] = await _buildAuthenticatedClient(serverId, agentUrl);
+    _clients[serverId]!.setAccessToken(accessToken);
 
     return getServer(serverId);
   }
@@ -226,6 +231,60 @@ class ServerRepositoryImpl implements ServerRepository {
   @override
   Future<String?> getAccessToken(String serverId) async {
     return secureStorage.getAccessToken(serverId);
+  }
+
+  /// Builds an ApiClient wired to refresh its access token via /auth/refresh.
+  Future<ApiClient> _buildAuthenticatedClient(String serverId, String agentUrl) async {
+    final client = ApiClient(
+      baseUrl: agentUrl,
+      onRefreshToken: () => _refreshAccessToken(serverId),
+    );
+    final stored = await secureStorage.getAccessToken(serverId);
+    if (stored != null) {
+      client.setAccessToken(stored);
+    }
+    return client;
+  }
+
+  /// Rebuilds the in-memory authenticated client for a persisted server so
+  /// requests carry a valid Authorization header after an app restart.
+  Future<void> _ensureClient(String serverId, String agentUrl) async {
+    if (_clients.containsKey(serverId)) return;
+    final token = await secureStorage.getAccessToken(serverId);
+    if (token == null) return;
+    _clients[serverId] =
+        await _buildAuthenticatedClient(serverId, agentUrl);
+  }
+
+  /// Exchanges the stored refresh token for a fresh access token. The server
+  /// returns both, so the refresh token is rotated and re-persisted as well.
+  Future<String?> _refreshAccessToken(String serverId) async {
+    final refreshToken = await secureStorage.getRefreshToken(serverId);
+    if (refreshToken == null || refreshToken.isEmpty) {
+      debugPrint('[server] no refresh token stored for $serverId');
+      return null;
+    }
+    try {
+      final server = await getServer(serverId);
+      final client = ApiClient(baseUrl: server.agentUrl);
+      final response = await client.post('/auth/refresh', data: {
+        'refreshToken': refreshToken,
+      });
+      final data = response.data as Map<String, dynamic>;
+      final accessToken = data['accessToken'] as String;
+      final newRefreshToken = data['refreshToken'] as String;
+
+      await secureStorage.saveAccessToken(serverId, accessToken);
+      await secureStorage.saveRefreshToken(serverId, newRefreshToken);
+
+      await _ensureClient(serverId, server.agentUrl);
+      _clients[serverId]?.setAccessToken(accessToken);
+
+      return accessToken;
+    } catch (e) {
+      debugPrint('[server] token refresh failed for $serverId: $e');
+      return null;
+    }
   }
 
   Future<void> _connectWebSocket(String serverId, List<String> channels) async {

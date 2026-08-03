@@ -8,15 +8,15 @@ While pairing the qwe1 app to the agent on the Linux server, the app showed a
 
 The agent started successfully with the test scripts, but connections were
 rejected. **The root cause is a scheme/address mismatch**: the development
-`run-agent.sh` agent serves **plain HTTP on port 9443**, so `https://` and the
+`dev.sh` agent serves **plain HTTP on port 9443**, so `https://` and the
 wrong URL will never connect.
 
 ---
 
 ## Root Cause
 
-`scripts/run-agent.sh` writes a runtime config with empty TLS paths
-(`run-agent.sh`, lines 69-93):
+`scripts/dev.sh` writes a runtime config with empty TLS paths
+(`dev.sh`, lines 199-214):
 
 ```yaml
 serverName: qwe1-runtime
@@ -75,7 +75,7 @@ you are connecting to it.
    (or `sudo firewall-cmd --permanent --add-port=9443/tcp && sudo firewall-cmd --reload`)
 
 5. **Match the port.**
-   If you started with `./scripts/run-agent.sh --port 1234`, then the app and curl
+   If you started with `./scripts/dev.sh --port 1234`, then the app and curl
    must both use `1234`, not the default `9443`.
 
 6. **Confirm the agent is still running** (a foreground run exits on Ctrl-C):
@@ -89,17 +89,21 @@ you are connecting to it.
 
 ## Correct Pairing Procedure (test mode)
 
-```bash
-# server, terminal 1
-./scripts/run-agent.sh --daemon
+`dev.sh` runs the agent **and** prints the enrollment token in a single
+terminal — no second terminal needed:
 
-# server, terminal 2
-./scripts/token.sh                        # print enrollment + access tokens
+```bash
+# server, single terminal
+./scripts/dev.sh
 ```
 
 Then in the app enter:
 - Server URL: `http://<server-lan-ip>:9443`
-- Enrollment token: copy from `token.sh` output
+- Enrollment token: copy from the `dev.sh` output
+
+For a background run instead: `./scripts/dev.sh --daemon`
+(to stop: `./scripts/dev.sh --stop`).
+For a full automated check of the API: `./scripts/dev.sh --test`.
 
 ---
 
