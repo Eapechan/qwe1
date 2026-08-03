@@ -79,6 +79,16 @@ class ServerRepositoryImpl implements ServerRepository {
     required String enrollmentToken,
     String groupName = '',
   }) async {
+    // If a server for this agentUrl already exists (e.g. a previous enroll
+    // succeeded server-side but the app failed to persist it), reuse it
+    // instead of consuming a fresh one-time enrollment token.
+    final existing = await _findByAgentUrl(agentUrl);
+    if (existing != null) {
+      // Tokens were already issued and persisted for this server.
+      await _ensureClient(existing.id, existing.agentUrl);
+      return getServer(existing.id);
+    }
+
     final client = ApiClient(baseUrl: agentUrl);
 
     // Exchange enrollment token for credentials
@@ -99,18 +109,29 @@ class ServerRepositoryImpl implements ServerRepository {
     final serverId = const Uuid().v4();
     final now = DateTime.now();
 
-    // Save to database
-    await database.insertServer(db.ServersCompanion.insert(
-      id: serverId,
-      name: name,
-      agentUrl: agentUrl,
-      createdAt: now,
-    ));
-
-    // Save tokens to secure storage
-    await secureStorage.saveRefreshToken(serverId, refreshToken);
+    // IMPORTANT: the enrollment token is single-use and has just been consumed
+    // server-side. Persist every credential BEFORE any further step that could
+    // throw, so a failure here never leaves the token wasted.
+    // 1. Persist tokens first (secure storage) — needs only the serverId.
     await secureStorage.saveAccessToken(serverId, accessToken);
+    await secureStorage.saveRefreshToken(serverId, refreshToken);
     await secureStorage.saveFingerprint(serverId, serverFingerprint);
+
+    // 2. Persist the server row (database).
+    try {
+      await database.insertServer(db.ServersCompanion.insert(
+        id: serverId,
+        name: name,
+        agentUrl: agentUrl,
+        createdAt: now,
+      ));
+    } catch (e) {
+      // A server row could not be created, but the enrollment token is already
+      // spent. Leave the tokens in place under serverId so a later retry (which
+      // will not re-consume a token) can restore this server from them.
+      debugPrint('[server] failed to persist server row for $serverId: $e');
+      rethrow;
+    }
 
     // Cache client (restore on refresh/startup via _ensureClient)
     _clients[serverId] = await _buildAuthenticatedClient(serverId, agentUrl);
@@ -294,6 +315,18 @@ class ServerRepositoryImpl implements ServerRepository {
 
   String _encodeJson(Map<String, dynamic> json) {
     return jsonEncode(json);
+  }
+
+  /// Looks up a persisted server by its agent URL, used to reuse an already
+  /// enrolled server instead of consuming another single-use enrollment token.
+  Future<db.Server?> _findByAgentUrl(String agentUrl) async {
+    final rows = await database.getAllServers();
+    for (final row in rows) {
+      if (row.agentUrl == agentUrl) {
+        return row;
+      }
+    }
+    return null;
   }
 
   Map<String, dynamic> _decodeJson(String json) {
