@@ -400,10 +400,12 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 8: Terminal
 
+**Status:** Complete
+
 - [x] Secure terminal (PTY via `creack/pty`)
 - [x] Multiple sessions (configurable max, default 4)
 - [x] Resize (`Resize` method)
-- [x] History (not yet)
+- [ ] History (not yet)
 - [x] Disconnect handling (sessions survive brief disconnects)
 - [x] Command execution (via PTY input)
 
@@ -412,6 +414,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 ---
 
 ### Phase 9: Notifications
+
+**Status:** IN PROGRESS
 
 - [x] Critical alerts (`SevCritical`)
 - [x] Warnings (`SevWarning`)
