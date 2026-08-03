@@ -168,45 +168,29 @@ Copy the **Enrollment Token** — you'll paste it into the app.
 
 > **Note**: The token is a one-time-use code. Once a device enrolls with it, the token is marked as used. Generate a new one for each device.
 
-### Local development (single terminal)
+### Local development (manual, no scripts)
 
-For quick local testing, `scripts/dev.sh` builds the agent, starts it, and prints
-a fresh enrollment token — all in **one terminal**:
+Run the agent in one terminal and generate a fresh token in a second terminal:
 
 ```bash
-git clone https://github.com/Eapechan/qwe1.git && cd qwe1
-./scripts/dev.sh
+# terminal 1 — run the agent
+cd qwe1
+./qwe1-agent --config config.yaml
+
+# terminal 2 — generate a fresh single-use enrollment token
+./qwe1-agent --enroll --config config.yaml
 ```
 
 Copy the printed token into the app (Server URL `http://YOUR_SERVER_IP:9443`).
-The script stays attached to the agent logs; press Ctrl-C to stop the agent.
-
-Other modes:
-
-```bash
-./scripts/dev.sh --daemon     # run agent in background (stop with --stop)
-./scripts/dev.sh --exchange   # also print an exchanged access token (consumes it)
-./scripts/dev.sh --test       # go vet + unit tests + full E2E API checks
-./scripts/dev.sh --port 9000  # use a different port
-```
+The token is single-use: if the enrollment fails after the server accepted it,
+generate a new token with `--enroll` again — never reuse an old one.
 
 ### Production install (TLS + systemd)
 
-For a real deployment, run the guided installer on your server. It cross-builds the
-agent, generates self-signed TLS certs, installs the binary to `/usr/local/bin`,
-writes a hardened config to `/etc/qwe1/config.yaml`, and registers a systemd service
+For a real deployment, do these manual steps on your server. They cross-build the
+agent, generate self-signed TLS certs, install the binary to `/usr/local/bin`,
+write a hardened config to `/etc/qwe1/config.yaml`, and register a systemd service
 that auto-starts on boot.
-
-```bash
-git clone https://github.com/Eapechan/qwe1.git && cd qwe1
-./scripts/setup-production.sh --server my-server --port 9443
-```
-
-After it finishes, the agent runs as HTTPS on `https://YOUR_SERVER_IP:9443`. The
-script prints the server fingerprint and enrollment token — enter both in the app to
-pair securely. A commented reference config lives at `config.example.yaml`.
-
-Manual steps it performs (use these if you prefer your own TLS/certs):
 
 1. **Generate certs** — either your CA's certs or self-signed:
    ```bash
@@ -437,9 +421,6 @@ cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-
 
 # Generate enrollment token (while agent runs)
 ./qwe1-agent --enroll --config ~/config.yaml
-
-# Or: dev script runs agent + token in one terminal
-cd /Users/binu/qwe1 && ./scripts/dev.sh
 
 # Flutter APK
 export JAVA_HOME=~/java/current

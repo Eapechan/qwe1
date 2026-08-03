@@ -60,7 +60,7 @@ docker run -d --name qwe1-agent --restart unless-stopped \
 ./qwe1-agent --enroll
 ```
 
-This shows an enrollment token you'll enter in the app.
+This shows an enrollment token you'll enter in the app. The token is **single-use** — generate a fresh one for each device/attempt.
 
 ### 3. Install the app
 
@@ -68,24 +68,20 @@ Build the APK or install from releases, then enter your server URL and the enrol
 
 See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
 
-For local development, `dev.sh` starts the agent and prints a fresh enrollment
-token in one terminal (no second terminal needed):
+Run the agent manually (two terminals on the server):
 
 ```bash
-./scripts/dev.sh              # start agent + print token (single terminal)
-./scripts/dev.sh --daemon     # run in background (stop with --stop)
-./scripts/dev.sh --test       # run go vet/tests + full E2E API checks
-./scripts/dev.sh --exchange   # also print an exchanged access token
+# terminal 1 — run the agent
+./qwe1-agent --config config.yaml
+
+# terminal 2 — generate a fresh single-use token
+./qwe1-agent --enroll --config config.yaml
 ```
 
-For a production deployment with TLS certs + systemd autostart:
-
-```bash
-git clone https://github.com/Eapechan/qwe1.git && cd qwe1
-./scripts/setup-production.sh --server my-server --port 9443
-```
-
-A commented production config template lives at [`config.example.yaml`](config.example.yaml).
+For a production deployment with TLS certs + systemd, follow the manual steps in
+[GETTING_STARTED.md](GETTING_STARTED.md) (self-signed certs, hardened config,
+systemd unit). A commented config template lives at
+[`config.example.yaml`](config.example.yaml).
 
 ## Architecture
 

@@ -6,20 +6,19 @@ While pairing the qwe1 app to the agent on the Linux server, the app showed a
 **"Network exception / Could not connect to server"** error, and
 `curl https://<server-ip>:9443/status` also failed to load.
 
-The agent started successfully with the test scripts, but connections were
+The agent started successfully, but connections were
 rejected. **The root cause is a scheme/address mismatch**: the development
-`dev.sh` agent serves **plain HTTP on port 9443**, so `https://` and the
-wrong URL will never connect.
+setup (plain config with empty TLS paths) serves **plain HTTP on port 9443**, so
+`https://` and the wrong URL will never connect.
 
 ---
 
 ## Root Cause
 
-`scripts/dev.sh` writes a runtime config with empty TLS paths
-(`dev.sh`, lines 199-214):
+A manual dev config with empty TLS paths:
 
 ```yaml
-serverName: qwe1-runtime
+serverName: test-server
 listenHost: 0.0.0.0
 listenPort: 9443
 tlsCertPath: ""
@@ -56,8 +55,9 @@ you are connecting to it.
 
 1. **Use the correct scheme — HTTP, not HTTPS.**
    In the app and curl, use `http://<server-ip>:9443`, never `https://`.
-   (HTTPS only works after running `scripts/setup-production.sh`, which generates
-   TLS certs and serves HTTPS on that port.)
+   (HTTPS only works after setting up TLS certs in the config — see the
+   production steps in [GETTING_STARTED.md](GETTING_STARTED.md), which serve
+   HTTPS on that port.)
 
 2. **Use the correct address (don't use localhost/127.0.0.1 on the phone).**
    From the server itself, `127.0.0.1` works. From a phone, you must use the
@@ -75,51 +75,48 @@ you are connecting to it.
    (or `sudo firewall-cmd --permanent --add-port=9443/tcp && sudo firewall-cmd --reload`)
 
 5. **Match the port.**
-   If you started with `./scripts/dev.sh --port 1234`, then the app and curl
+   If you started the agent with `listenPort: 1234`, then the app and curl
    must both use `1234`, not the default `9443`.
 
 6. **Confirm the agent is still running** (a foreground run exits on Ctrl-C):
    ```bash
-   cat scripts/.runtime/agent.pid         # shows pid if daemon mode
+   ps aux | grep qwe1-agent         # is it running?
    curl http://127.0.0.1:9443/status      # still returns JSON?
-   tail -f scripts/.runtime/agent.log     # shows startup errors
    ```
 
 ---
 
 ## Correct Pairing Procedure (test mode)
 
-`dev.sh` runs the agent **and** prints the enrollment token in a single
-terminal — no second terminal needed:
+Run the agent, then generate a fresh token in a second terminal:
 
 ```bash
-# server, single terminal
-./scripts/dev.sh
+# terminal 1 — run the agent
+./qwe1-agent --config config.yaml
+
+# terminal 2 — generate a fresh single-use token
+./qwe1-agent --enroll --config config.yaml
 ```
 
 Then in the app enter:
 - Server URL: `http://<server-lan-ip>:9443`
-- Enrollment token: copy from the `dev.sh` output
+- Enrollment token: the `qwe1-...` printed by `--enroll`
 
-For a background run instead: `./scripts/dev.sh --daemon`
-(to stop: `./scripts/dev.sh --stop`).
-For a full automated check of the API: `./scripts/dev.sh --test`.
+The token is **single-use**. If a pairing attempt fails or you re-add the server,
+generate a brand-new token with `--enroll` — do not reuse an old one.
 
 ---
 
 ## HTTPS Production Fix
 
 The app "could not connect" and the desire for HTTPS both point toward the
-production install, which serves real HTTPS on the same port:
-
-```bash
-git pull origin main
-./scripts/setup-production.sh --server my-server --port 9443
-```
-
-This cross-builds the agent, generates self-signed TLS certs, installs to
-`/etc/qwe1/`, and registers a systemd service. It prints the server fingerprint
-and enrollment token — enter both in the app to pair over HTTPS securely.
+production install, which serves real HTTPS on the same port. Follow the manual
+production steps in [GETTING_STARTED.md](GETTING_STARTED.md): generate
+self-signed TLS certs, point `tlsCertPath`/`tlsKeyPath` at them in
+`/etc/qwe1/config.yaml`, install to `/etc/qwe1/`, and register a systemd service.
+The agent prints the server fingerprint — enter it and a fresh enrollment token
+(`qwe1-agent --enroll --config /etc/qwe1/config.yaml`) in the app to pair over
+HTTPS securely.
 
 ---
 
