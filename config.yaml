@@ -2,7 +2,7 @@
 #
 # Run the agent and generate a fresh enrollment token from this repo:
 #   ./agent/qwe1-agent --config config.yaml
-#   ./token.sh
+#   ./run.sh
 #
 # For production HTTPS, set tlsCertPath/tlsKeyPath to your certs and use
 # https://<server-ip>:9443 in the app.

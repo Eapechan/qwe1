@@ -2,8 +2,6 @@ module github.com/qwe1/qwe1/agent
 
 go 1.25.0
 
-toolchain go1.26.5
-
 require (
 	github.com/creack/pty v1.1.21
 	github.com/docker/docker v25.0.0+incompatible

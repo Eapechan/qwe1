@@ -29,22 +29,23 @@
 
 ## Quickstart
 
-### 1. Install the agent
+### 1. Run the agent
 
-Build and run on your Linux server:
+**Prerequisites:** Go >= 1.25 on your server ([install Go](https://go.dev/dl/)).
+
+Clone and run in one command:
 
 ```bash
-# Build for Linux amd64
-GOOS=linux GOARCH=amd64 go build -o qwe1-agent ./cmd/qwe1-agent
-
-# Transfer to server
-scp qwe1-agent user@YOUR_SERVER_IP:~/qwe1-agent
-
-# SSH in and run
-ssh user@YOUR_SERVER_IP
-chmod +x ~/qwe1-agent
-./qwe1-agent
+git clone https://github.com/Eapechan/qwe1.git
+cd qwe1
+./run.sh
 ```
+
+`run.sh` does everything — pulls latest code, builds the agent, generates a
+1-hour reusable enrollment token + QR code, and starts the agent in the
+background.
+
+The QR code is saved to `enroll-qr.png` and printed as ASCII in the terminal.
 
 Or via Docker:
 
@@ -54,33 +55,20 @@ docker run -d --name qwe1-agent --restart unless-stopped \
   -p 9443:9443 qwe1/agent
 ```
 
-### 2. Generate a pairing token
+### 2. Scan the QR with the app
 
-```bash
-./qwe1-agent --enroll
-```
-
-This prints a QR code you can scan with the app, plus an enrollment token you can paste. The token is valid for **1 hour** and can be used by multiple devices within that window. After 1 hour, run `--enroll` again.
+Open the qwe1 app → Add Server → **Scan QR Code** → scan the QR from the
+terminal or `enroll-qr.png`. The token is valid for **1 hour** and can be used
+by multiple devices. After 1 hour, run `./run.sh token` again.
 
 ### 3. Install the app
 
-Build the APK or install from releases, then scan the QR code or enter your server URL and the enrollment token.
+Build the APK or install from releases, then scan the QR code.
 
 See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
 
-Run the agent (or use `./token.sh` for a one-liner):
-
-```bash
-# terminal 1 — run the agent
-./qwe1-agent --config config.yaml
-
-# terminal 2 — generate a token + QR code
-./token.sh
-```
-
 For a production deployment with TLS certs + systemd, follow the manual steps in
-[GETTING_STARTED.md](GETTING_STARTED.md) (self-signed certs, hardened config,
-systemd unit). A commented config template lives at
+[GETTING_STARTED.md](GETTING_STARTED.md). A commented config template lives at
 [`config.example.yaml`](config.example.yaml).
 
 ## Architecture

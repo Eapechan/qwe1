@@ -58,78 +58,38 @@ go version
 
 ## Part 1: Run the Go Agent on Your Server
 
-### Step 1: Cross-compile for Linux
-
-From your Mac:
+### Step 1: Clone and run
 
 ```bash
-cd /Users/binu/qwe1/agent
-GOOS=linux GOARCH=amd64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
+git clone https://github.com/Eapechan/qwe1.git
+cd qwe1
+./run.sh
 ```
 
-For ARM servers (Raspberry Pi, etc.):
-```bash
-GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
+**Prerequisites:** Go >= 1.25 on your server ([install Go](https://go.dev/dl/)).
+
+`run.sh` will:
+1. Pull the latest code from origin/main
+2. Check your Go version
+3. Build the agent binary
+4. Generate a 1-hour reusable enrollment token + QR code (ASCII + `enroll-qr.png`)
+5. Start the agent in the background
+
+You'll see output like:
+```
+==> Agent started (PID 12345)
+==> Health check OK
+
+═══════════════════════════════════════════════
+  qwe1 Agent — Ready
+═══════════════════════════════════════════════
+  Agent PID : 12345
+  URL       : http://0.0.0.0:9443
+  Log       : agent.log
+  QR code   : enroll-qr.png
 ```
 
-### Step 2: Transfer to your server
-
-```bash
-scp bin/qwe1-agent-linux user@YOUR_SERVER_IP:~/qwe1-agent
-```
-
-Replace `user@YOUR_SERVER_IP` with your actual SSH credentials.
-
-### Step 3: Create config on the server
-
-SSH into your server and create the config:
-
-```bash
-ssh user@YOUR_SERVER_IP
-
-cat > ~/config.yaml << 'EOF'
-serverName: my-server
-listenHost: "0.0.0.0"
-listenPort: 9443
-tlsCertPath: ""
-tlsKeyPath: ""
-auth:
-  accessTokenTTL: 900
-  refreshTokenTTL: 2592000
-docker:
-  socketPath: /var/run/docker.sock
-  enabled: true
-host:
-  metricsInterval: 5
-terminal:
-  maxSessions: 4
-  idleTimeout: 300
-files:
-  allowedRoots: ["/home", "/var/log", "/tmp", "/etc"]
-  maxUpload: 524288000
-alerts:
-  enabled: true
-  bufferSize: 1000
-EOF
-```
-
-Setting `tlsCertPath` and `tlsKeyPath` to empty strings runs plain HTTP (easier for testing).
-
-### Step 4: Make executable and run
-
-```bash
-chmod +x ~/qwe1-agent
-./qwe1-agent --config ~/config.yaml
-```
-
-You should see:
-```
-server listening addr=0.0.0.0:9443
-```
-
-Leave this running. Open a new terminal for the next steps.
-
-### Step 5: Verify it works
+### Step 2: Verify it works
 
 From your Mac (in a new terminal):
 
@@ -142,43 +102,28 @@ Expected response:
 {"name":"my-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"terminal":true,"files":true,"tempSensors":true}}
 ```
 
-### Step 6: Generate enrollment token
+### Step 2: Verify it works
 
-Run the enrollment command on your server:
-
-```bash
-./qwe1-agent --enroll --config ~/config.yaml
-```
-
-Output:
-```
-=========================================
-  qwe1 Agent Enrollment Token
-=========================================
-  Server:          my-server
-  Enrollment Token: qwe1-<token>
-  Expires:         2027-08-01 (365 days)
-=========================================
-
-Enter this token in the qwe1 app to pair
-with this server.
-```
-
-Copy the **Enrollment Token** — you'll paste it into the app, or scan the QR code.
-
-> **Note**: The token is valid for **1 hour** (`auth.enrollmentTTL` in config) and can be used by multiple devices within that window. After 1 hour, run `./token.sh` or `qwe1-agent --enroll` again.
-
-### Local development (manual, no scripts)
-
-Run the agent in one terminal and generate a fresh token in a second terminal:
+From your Mac (in a new terminal):
 
 ```bash
-# terminal 1 — run the agent
-cd qwe1
-./qwe1-agent --config config.yaml
+curl http://YOUR_SERVER_IP:9443/status
+```
 
-# terminal 2 — generate a fresh enrollment token + QR code
-./token.sh
+### Step 3: Generate enrollment token
+
+### Local development
+
+Run the agent in the foreground:
+
+```bash
+./run.sh --foreground
+```
+
+Or regenerate the token + QR separately:
+
+```bash
+./run.sh token
 ```
 
 Copy the printed token into the app (Server URL `http://YOUR_SERVER_IP:9443`), or scan the QR code from the app's "Add Server" screen.
@@ -193,7 +138,7 @@ When you're away from home, the app connects via Tailscale VPN. The QR code carr
    ```yaml
    advertiseTailscaleUrl: "http://100.x.y.z:9443"
    ```
-4. Re-run `./token.sh` — the new QR includes both addresses.
+4. Re-run `./run.sh` — the new QR includes both addresses.
 5. Scan with the app. At home it uses the LAN URL; away from home it automatically falls back to the Tailscale URL.
 
 ### Production install (TLS + systemd)
@@ -418,20 +363,29 @@ To make this fully functional, implement in this order:
 
 ---
 
-## Quick Reference: Build Commands
+## Quick Reference
 
 ```bash
-# Go agent (build for current platform)
-cd /Users/binu/qwe1/agent && go build -o bin/qwe1-agent ./cmd/qwe1-agent
+# Full flow: pull → build → token+QR → start agent
+./run.sh
 
-# Go agent (cross-compile for Linux amd64)
-cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=amd64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
+# Force rebuild
+./run.sh --force
 
-# Go agent (cross-compile for Linux arm64)
-cd /Users/binu/qwe1/agent && GOOS=linux GOARCH=arm64 go build -o bin/qwe1-agent-linux ./cmd/qwe1-agent
+# Skip git pull
+./run.sh --no-pull
 
-# Generate enrollment token + QR (while agent runs)
-./token.sh
+# Run in foreground (stream logs)
+./run.sh --foreground
+
+# Stop the agent
+./run.sh stop
+
+# Regenerate token + QR
+./run.sh token
+
+# Check agent status
+./run.sh status
 
 # Flutter APK
 export JAVA_HOME=~/java/current
