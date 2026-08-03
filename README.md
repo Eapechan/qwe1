@@ -17,11 +17,12 @@
 
 ## Highlights
 
-- Live health monitoring — CPU, RAM, disk, network, temperature, uptime
-- Docker management — list, inspect, start/stop/restart, stream logs
+- Live health monitoring — CPU, RAM, disk, network, temperature, uptime, disk I/O, processes
+- Docker management — containers, images, volumes, networks; start/stop/restart, stream logs
 - Interactive terminal — real PTY sessions from your phone
-- File browser — navigate, upload, and manage files on the server
+- File browser — navigate, upload, copy, search, and manage files on the server
 - Alerts — threshold-based with history and acknowledgement
+- Performance profiling — pprof endpoints for CPU and memory
 - Security — TLS 1.3, certificate pinning, short-lived tokens, biometric lock
 - Multiple servers, one app
 - Zero cloud — every byte travels only between your phone and your own servers
@@ -88,7 +89,7 @@ agent/
 ├── internal/
 │   ├── server/               # HTTP/WS server, router, middleware, handlers
 │   │   ├── server.go         # Server wiring, route registration, lifecycle
-│   │   ├── handlers.go       # All REST endpoint handlers (31 endpoints)
+│   │   ├── handlers.go       # All REST endpoint handlers
 │   │   ├── authmw.go         # Auth middleware, rate limiting, audit recording
 │   │   ├── middleware.go      # Logging, recovery, CORS middleware
 │   │   ├── respond.go        # JSON response helpers
@@ -175,44 +176,16 @@ agent/
 | `GET` | `/debug/pprof/profile` | Yes | CPU profile download |
 | `GET` | `/ws` | No | WebSocket endpoint |
 
-See [API_REFERENCE.md](API_REFERENCE.md) for full request/response schemas.
+See the [API reference](https://github.com/Eapechan/qwe1/blob/v1/API_REFERENCE.md) on the `v1` branch for full request/response schemas.
 
 ## Documentation
 
 | Doc | What it answers |
 |-----|-----------------|
 | [Getting Started](GETTING_STARTED.md) | How to run everything end-to-end |
-| [Backend Roadmap](BACKEND_ROADMAP.md) | Complete backend development plan and current state |
-| [Architecture](ARCHITECTURE.md) | Backend architecture, data flows, security model |
-| [Development Plan](DEVELOPMENT_PLAN.md) | Development workflow and phase-by-phase plan |
-| [API Reference](API_REFERENCE.md) | Complete endpoint reference with schemas |
-| [Changelog](CHANGELOG.md) | Version history and changes |
-| [Vision](docs/01-vision.md) | Why qwe1 exists |
-| [Architecture](docs/09-architecture.md) | System-level architecture |
-| [API Design](docs/11-api-design.md) | The wire contract |
-| [Security](docs/14-security-architecture.md) | How we defend it |
-| [Roadmap](docs/17-roadmap.md) | What's next |
-
-| Feature | Status |
-|---------|--------|
-| Host metrics (CPU/RAM/Disk) | Working |
-| Docker management | Working |
-| File browser (list/read/write/upload) | Working |
-| Alerts engine | Working |
-| Authentication (enroll/refresh/revoke) | Working |
-| Terminal (PTY sessions) | Backend working, UI partial |
-| Real-time metrics streaming | Backend working, UI partial |
-
-## Documentation
-
-| Doc | What it answers |
-|-----|-----------------|
-| [Getting Started](GETTING_STARTED.md) | How to run everything end-to-end |
-| [Vision](docs/01-vision.md) | Why qwe1 exists |
-| [Architecture](docs/09-architecture.md) | How it's built |
-| [API](docs/11-api-design.md) | The wire contract |
-| [Security](docs/14-security-architecture.md) | How we defend it |
-| [Roadmap](docs/17-roadmap.md) | What's next |
+| [Security](SECURITY.md) | Security policy and responsible disclosure |
+| [Contributing](CONTRIBUTING.md) | How to contribute |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards |
 
 ## Contributing
 

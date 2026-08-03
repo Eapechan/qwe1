@@ -28,10 +28,10 @@ What else was evaluated, and why was it rejected?
 
 ## Reference docs
 
-Link the planning documents this decision affects (e.g. `docs/09-architecture.md`).
+Link any architecture or design documents this decision affects (see the `v1` branch `docs/` folder).
 
 ## Decision (filled in by maintainers)
 
 - [ ] Accepted / [ ] Rejected / [ ] Modified
-- ADR number: `docs/adr/000X`
+- ADR number: `000X`
 - Notes:

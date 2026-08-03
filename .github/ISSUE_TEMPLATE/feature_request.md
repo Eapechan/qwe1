@@ -25,5 +25,5 @@ Which MoSCoW priority do you think this is, and why?
 
 ## Notes
 
-- Check [04-feature-planning.md](docs/04-feature-planning.md) and [22-future-roadmap.md](docs/22-future-roadmap.md) to see if this is already planned.
+- Check open issues and discussions to see if this is already planned.
 - Big changes go through the [RFC process](.github/ISSUE_TEMPLATE/rfc.md).

@@ -10,8 +10,8 @@ agent/internal/terminal/** @qwe1/maintainers
 agent/internal/files/** @qwe1/maintainers
 agent/internal/server/middleware/** @qwe1/maintainers
 
-# Security documentation
+# Security documentation (v1 branch)
 docs/14-security-architecture.md @qwe1/maintainers
 
-# Docs
+# Docs (v1 branch)
 docs/** @qwe1/maintainers

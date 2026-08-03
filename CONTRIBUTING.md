@@ -7,7 +7,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating. We e
 ## What kind of contributions we welcome
 
 - 🐛 Bug reports and reproductions
-- ✨ Features (see the [roadmap](docs/17-roadmap.md))
+- ✨ Features
 - 📝 Documentation and guides
 - 🔐 Security analysis and audits
 - 🎨 Design and UX improvements
@@ -16,7 +16,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating. We e
 
 ## Before you start
 
-1. **Read the docs.** Start with [docs/README.md](docs/README.md) and especially [09-architecture.md](docs/09-architecture.md). Most "how do I..." questions are answered there.
+1. **Read the docs.** Start with [README.md](README.md) and [GETTING_STARTED.md](GETTING_STARTED.md). Most "how do I..." questions are answered there.
 2. **Check open issues/discussions** to avoid duplicating work.
 3. **Ask first for anything big** — open a Discussion or comment on the issue before writing hundreds of lines.
 
@@ -64,18 +64,18 @@ The contract lives at `api/openapi.yaml`. Both sides validate against it in CI. 
 1. Create a PR against `main`.
 2. Fill in the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 3. Make sure path-scoped CI is green (app/agent/contract/security).
-4. Add or update tests — new code should keep coverage at or above the thresholds in [19-testing-strategy.md](docs/19-testing-strategy.md).
+4. Add or update tests — keep coverage in line with existing package tests.
 5. Update docs in the same PR where the behavior is user-facing.
 6. Wait for review. One approving review is required (two for `api/`, `agent/internal/auth*`, `agent/internal/terminal*`, `agent/internal/files*`, and security-relevant files).
 7. Squash-merge is used to keep `main` clean.
 
 ## RFC process for architecture decisions
 
-Anything marked `[OPEN]` in the docs, or any significant architecture change, goes through an RFC:
+Any significant architecture change goes through an RFC:
 
 1. Open an issue with the `rfc` label (use the [RFC template](.github/ISSUE_TEMPLATE/rfc.md)).
 2. Discuss context/decision/consequences with maintainers and the community.
-3. Record the decision as an ADR in `docs/adr/` when accepted.
+3. Record the decision as an ADR when accepted.
 
 ## Labels you'll see
 
@@ -86,12 +86,12 @@ Anything marked `[OPEN]` in the docs, or any significant architecture change, go
 
 ## Recognition
 
-Contributors are credited in release notes. We maintain a `CONTRIBUTORS.md`. Sponsorship and funding decisions are documented transparently in [21-open-source.md](docs/21-open-source.md).
+Contributors are credited in release notes. We maintain a `CONTRIBUTORS.md`.
 
 ## Getting help
 
 - GitHub Discussions for questions and RFCs
 - `@maintainers` for triage issues
-- Check the [troubleshooting docs](docs/20-documentation.md)
+- Check [GETTING_STARTED.md](GETTING_STARTED.md) for troubleshooting and setup
 
 Thanks for contributing to qwe1.
