@@ -119,6 +119,20 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /docker/containers/{id}/inspect", s.authMiddleware(s.handleDockerInspect))
 	mux.HandleFunc("GET /docker/containers/{id}/logs", s.authMiddleware(s.handleDockerLogs))
 
+	// Docker images
+	mux.HandleFunc("GET /docker/images", s.authMiddleware(s.handleDockerImages))
+	mux.HandleFunc("GET /docker/images/{id}/inspect", s.authMiddleware(s.handleDockerImageInspect))
+	mux.HandleFunc("POST /docker/images/{id}/pull", s.authMiddleware(s.handleDockerImagePull))
+	mux.HandleFunc("DELETE /docker/images/{id}", s.authMiddleware(s.handleDockerImageDelete))
+
+	// Docker volumes
+	mux.HandleFunc("GET /docker/volumes", s.authMiddleware(s.handleDockerVolumes))
+	mux.HandleFunc("GET /docker/volumes/{name}/inspect", s.authMiddleware(s.handleDockerVolumeInspect))
+
+	// Docker networks
+	mux.HandleFunc("GET /docker/networks", s.authMiddleware(s.handleDockerNetworks))
+	mux.HandleFunc("GET /docker/networks/{id}/inspect", s.authMiddleware(s.handleDockerNetworkInspect))
+
 	// Terminal routes
 	mux.HandleFunc("POST /terminal", s.authMiddleware(s.handleTerminalCreate))
 	mux.HandleFunc("DELETE /terminal/{id}", s.authMiddleware(s.handleTerminalDelete))
@@ -131,6 +145,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /fs/write", s.authMiddleware(s.handleFsWrite))
 	mux.HandleFunc("PATCH /fs/rename", s.authMiddleware(s.handleFsRename))
 	mux.HandleFunc("DELETE /fs", s.authMiddleware(s.handleFsDelete))
+	mux.HandleFunc("POST /fs/copy", s.authMiddleware(s.handleFsCopy))
+	mux.HandleFunc("GET /fs/search", s.authMiddleware(s.handleFsSearch))
 
 	// Alert routes
 	mux.HandleFunc("GET /alerts", s.authMiddleware(s.handleAlerts))
@@ -143,6 +159,10 @@ func (s *Server) routes() http.Handler {
 
 	// Audit
 	mux.HandleFunc("GET /audit", s.authMiddleware(s.handleAudit))
+
+	// Profiling (debug only)
+	mux.HandleFunc("GET /debug/pprof/", s.authMiddleware(s.handlePprof))
+	mux.HandleFunc("GET /debug/pprof/profile", s.authMiddleware(s.handlePprofProfile))
 
 	return s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux)))
 }

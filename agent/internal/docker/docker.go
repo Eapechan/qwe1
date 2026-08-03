@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -14,22 +15,24 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // Container is the summary shape returned to the app (docs/11 §5).
 type Container struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Image       string    `json:"image"`
-	State       string    `json:"state"`
-	Status      string    `json:"status"`
-	Health      string    `json:"health"`
-	Ports       []PortMap `json:"ports"`
-	CPUPercent  float64   `json:"cpuPercent"`
-	MemoryBytes uint64    `json:"memoryBytes"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Image       string            `json:"image"`
+	State       string            `json:"state"`
+	Status      string            `json:"status"`
+	Health      string            `json:"health"`
+	Ports       []PortMap         `json:"ports"`
+	Labels      map[string]string `json:"labels"`
+	CPUPercent  float64           `json:"cpuPercent"`
+	MemoryBytes uint64            `json:"memoryBytes"`
+	CreatedAt   time.Time         `json:"createdAt"`
 }
 
 // PortMap is a single published port.
@@ -37,6 +40,35 @@ type PortMap struct {
 	Host      string `json:"host"`
 	Container string `json:"container"`
 	Protocol  string `json:"protocol"`
+}
+
+// ImageSummary is a summary shape for Docker images.
+type ImageSummary struct {
+	ID          string   `json:"id"`
+	RepoTags    []string `json:"repoTags"`
+	Created     int64    `json:"created"`
+	Size        int64    `json:"size"`
+	SharedSize  int64    `json:"sharedSize"`
+	VirtualSize int64    `json:"virtualSize"`
+}
+
+// VolumeInfo is the summary shape for Docker volumes.
+type VolumeInfo struct {
+	Name       string            `json:"name"`
+	Driver     string            `json:"driver"`
+	Mountpoint string            `json:"mountpoint"`
+	Labels     map[string]string `json:"labels"`
+	Scope      string            `json:"scope"`
+}
+
+// NetworkInfo is the summary shape for Docker networks.
+type NetworkInfo struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Driver      string            `json:"driver"`
+	Scope       string            `json:"scope"`
+	Labels      map[string]string `json:"labels"`
+	IPv6Enabled bool              `json:"ipv6Enabled"`
 }
 
 // Manager wraps the Docker client.
@@ -79,6 +111,7 @@ func (m *Manager) ListContainers(ctx context.Context, withStats bool) ([]Contain
 			Image:     c.Image,
 			State:     c.State,
 			Status:    c.Status,
+			Labels:    c.Labels,
 			CreatedAt: time.Unix(c.Created, 0).UTC(),
 		}
 		ct.Health = healthFromStatus(c.Status)
@@ -311,4 +344,107 @@ func (m *Manager) Close() error {
 		return m.cli.Close()
 	}
 	return nil
+}
+
+// ListImages returns all Docker images.
+func (m *Manager) ListImages(ctx context.Context) ([]ImageSummary, error) {
+	images, err := m.cli.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ImageSummary, 0, len(images))
+	for _, img := range images {
+		out = append(out, ImageSummary{
+			ID:          img.ID,
+			RepoTags:    img.RepoTags,
+			Created:     img.Created,
+			Size:        img.Size,
+			SharedSize:  img.SharedSize,
+			VirtualSize: img.VirtualSize,
+		})
+	}
+	return out, nil
+}
+
+// InspectImage returns detailed image information.
+func (m *Manager) InspectImage(ctx context.Context, id string) (json.RawMessage, error) {
+	raw, _, err := m.cli.ImageInspectWithRaw(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(raw)
+}
+
+// PullImage pulls an image from a registry.
+func (m *Manager) PullImage(ctx context.Context, ref string) error {
+	rd, err := m.cli.ImagePull(ctx, ref, types.ImagePullOptions{})
+	if err != nil {
+		return err
+	}
+	defer rd.Close()
+	_, err = io.Copy(io.Discard, rd)
+	return err
+}
+
+// DeleteImage removes an image.
+func (m *Manager) DeleteImage(ctx context.Context, id string, force bool) error {
+	_, err := m.cli.ImageRemove(ctx, id, types.ImageRemoveOptions{Force: force})
+	return err
+}
+
+// ListVolumes returns all Docker volumes.
+func (m *Manager) ListVolumes(ctx context.Context) ([]VolumeInfo, error) {
+	resp, err := m.cli.VolumeList(ctx, volume.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]VolumeInfo, 0, len(resp.Volumes))
+	for _, v := range resp.Volumes {
+		out = append(out, VolumeInfo{
+			Name:       v.Name,
+			Driver:     v.Driver,
+			Mountpoint: v.Mountpoint,
+			Labels:     v.Labels,
+			Scope:      v.Scope,
+		})
+	}
+	return out, nil
+}
+
+// InspectVolume returns detailed volume information.
+func (m *Manager) InspectVolume(ctx context.Context, name string) (json.RawMessage, error) {
+	raw, _, err := m.cli.VolumeInspectWithRaw(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(raw)
+}
+
+// ListNetworks returns all Docker networks.
+func (m *Manager) ListNetworks(ctx context.Context) ([]NetworkInfo, error) {
+	nets, err := m.cli.NetworkList(ctx, types.NetworkListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NetworkInfo, 0, len(nets))
+	for _, n := range nets {
+		out = append(out, NetworkInfo{
+			ID:          n.ID,
+			Name:        n.Name,
+			Driver:      n.Driver,
+			Scope:       n.Scope,
+			Labels:      n.Labels,
+			IPv6Enabled: n.EnableIPv6,
+		})
+	}
+	return out, nil
+}
+
+// InspectNetwork returns detailed network information.
+func (m *Manager) InspectNetwork(ctx context.Context, id string) (json.RawMessage, error) {
+	raw, _, err := m.cli.NetworkInspectWithRaw(ctx, id, types.NetworkInspectOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(raw)
 }

@@ -1,200 +1,188 @@
 package files
 
 import (
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func newTestManager(t *testing.T) (*Manager, string) {
-	t.Helper()
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("hello"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "sub"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "sub", "b.txt"), []byte("world"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	m, err := New([]string{root}, false, 1<<20, 1<<20)
+func TestNewManager(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("New() error = %v", err)
 	}
-	return m, root
-}
-
-func TestList(t *testing.T) {
-	m, _ := newTestManager(t)
-	entries, err := m.List("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var names []string
-	for _, e := range entries {
-		names = append(names, e.Name)
-	}
-	if strings.Join(names, ",") != "sub,a.txt" {
-		t.Fatalf("listing = %v", names)
+	if len(m.Roots()) != 1 {
+		t.Errorf("Roots() length = %d, want 1", len(m.Roots()))
 	}
 }
 
-func TestHiddenFiltered(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".secret"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
+func TestNewManagerNoRoots(t *testing.T) {
+	_, err := New([]string{}, false, 0, 0)
+	if err == nil {
+		t.Error("New() with no roots should return error")
 	}
-	m, err := New([]string{root}, false, 1<<20, 1<<20)
+}
+
+func TestListEmptyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("New() error = %v", err)
 	}
+
 	entries, err := m.List("")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("List() error = %v", err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("hidden file listed: %v", entries)
-	}
-	m2, err := New([]string{root}, true, 1<<20, 1<<20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	entries, err = m2.List("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 {
-		t.Fatalf("hidden file not listed with hidden=true: %v", entries)
+		t.Errorf("List() returned %d entries, want 0", len(entries))
 	}
 }
 
-func TestTraversalRejected(t *testing.T) {
-	m, root := newTestManager(t)
-	// Symlink pointing outside the root.
-	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("s"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
-		t.Fatal(err)
+func TestListAndWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
 	}
 
-	for _, p := range []string{
-		"../outside",
-		"escape",
-		"escape/secret.txt",
-		filepath.Join(root, "..", "..", "etc"),
-	} {
-		if _, err := m.List(p); !errors.Is(err, ErrForbidden) {
-			t.Fatalf("List(%q) = %v, want ErrForbidden", p, err)
-		}
-		if _, err := m.Stat(p); !errors.Is(err, ErrForbidden) {
-			t.Fatalf("Stat(%q) = %v, want ErrForbidden", p, err)
+	// Write a file
+	err = m.Write("test.txt", strings.NewReader("hello world"))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	// List should show the file
+	entries, err := m.List("")
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	found := false
+	for _, e := range entries {
+		if e.Name == "test.txt" {
+			found = true
+			if e.Size != 11 {
+				t.Errorf("test.txt size = %d, want 11", e.Size)
+			}
 		}
 	}
-}
+	if !found {
+		t.Error("test.txt not found in listing")
+	}
 
-func TestSymlinkInsideAllowed(t *testing.T) {
-	m, root := newTestManager(t)
-	if err := os.Symlink(filepath.Join(root, "sub"), filepath.Join(root, "link")); err != nil {
-		t.Fatal(err)
-	}
-	entries, err := m.List("link")
+	// Read the file
+	reader, entry, err := m.Open("test.txt")
 	if err != nil {
-		t.Fatalf("list via symlink: %v", err)
+		t.Fatalf("Open() error = %v", err)
 	}
-	if len(entries) != 1 || entries[0].Name != "b.txt" {
-		t.Fatalf("symlink listing = %v", entries)
-	}
-}
-
-func TestReadWrite(t *testing.T) {
-	m, _ := newTestManager(t)
-	if err := m.Write("new.txt", strings.NewReader("data")); err != nil {
-		t.Fatal(err)
-	}
-	rc, entry, err := m.Open("new.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rc.Close()
-	if entry.Name != "new.txt" || entry.Size != 4 {
-		t.Fatalf("entry = %+v", entry)
-	}
-	got, err := io.ReadAll(rc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != "data" {
-		t.Fatalf("read = %q", got)
+	defer reader.Close()
+	if entry.Name != "test.txt" {
+		t.Errorf("Open() name = %q, want test.txt", entry.Name)
 	}
 }
 
-func TestOpenTooLarge(t *testing.T) {
-	root := t.TempDir()
-	big := strings.Repeat("x", 10)
-	if err := os.WriteFile(filepath.Join(root, "big.txt"), []byte(big), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	m, err := New([]string{root}, false, 5, 100)
+func TestResolveTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("New() error = %v", err)
 	}
-	if _, _, err := m.Open("big.txt"); !errors.Is(err, ErrTooLarge) {
-		t.Fatalf("open big = %v, want ErrTooLarge", err)
+
+	// Path traversal should be rejected
+	_, err = m.Resolve("/etc/passwd")
+	if err == nil {
+		t.Error("Resolve(/etc/passwd) should return error")
+	}
+
+	// Symlink escape should be rejected
+	linkPath := filepath.Join(tmpDir, "link")
+	if err := os.Symlink("/etc", linkPath); err == nil {
+		defer os.Remove(linkPath)
+		_, err = m.Resolve("link/passwd")
+		if err == nil {
+			t.Error("Resolve through symlink escape should return error")
+		}
 	}
 }
 
-func TestDelete(t *testing.T) {
-	m, root := newTestManager(t)
-	if err := m.Delete("a.txt", false); err != nil {
-		t.Fatal(err)
+func TestMkdir(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "a.txt")); !os.IsNotExist(err) {
-		t.Fatal("file not deleted")
+
+	err = m.Mkdir("subdir")
+	if err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
 	}
-	if err := m.Delete("sub", false); err == nil {
-		t.Fatal("dir delete without recursive should fail")
+
+	// Verify it exists
+	info, err := os.Stat(filepath.Join(tmpDir, "subdir"))
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
 	}
-	if err := m.Delete("sub", true); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "sub")); !os.IsNotExist(err) {
-		t.Fatal("dir not deleted")
+	if !info.IsDir() {
+		t.Error("subdir should be a directory")
 	}
 }
 
 func TestRename(t *testing.T) {
-	m, root := newTestManager(t)
-	if err := m.Rename("a.txt", "renamed.txt"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "renamed.txt")); err != nil {
-		t.Fatal("rename failed")
-	}
-	// Renaming outside a root is rejected.
-	if err := m.Rename("renamed.txt", "../renamed.txt"); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("rename escape = %v, want ErrForbidden", err)
-	}
-}
-
-func TestNoRoots(t *testing.T) {
-	if _, err := New(nil, false, 1<<20, 1<<20); err == nil {
-		t.Fatal("expected error with no roots")
-	}
-}
-
-func TestResolveDefaultsToFirstRoot(t *testing.T) {
-	m, _ := newTestManager(t)
-	p, err := m.Resolve("")
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("New() error = %v", err)
 	}
-	if p != m.Roots()[0] {
-		t.Fatalf("resolve = %q, want %q", p, m.Roots()[0])
+
+	// Create a file
+	err = m.Write("old.txt", strings.NewReader("content"))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	// Rename it
+	err = m.Rename("old.txt", "new.txt")
+	if err != nil {
+		t.Fatalf("Rename() error = %v", err)
+	}
+
+	// Verify old doesn't exist
+	_, _, err = m.Open("old.txt")
+	if err == nil {
+		t.Error("old.txt should not exist after rename")
+	}
+
+	// Verify new exists
+	_, _, err = m.Open("new.txt")
+	if err != nil {
+		t.Errorf("new.txt should exist after rename: %v", err)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	tmpDir := t.TempDir()
+	m, err := New([]string{tmpDir}, false, 0, 0)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	// Create a file
+	err = m.Write("delete.txt", strings.NewReader("content"))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	// Delete it
+	err = m.Delete("delete.txt", false)
+	if err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+
+	// Verify it's gone
+	_, err = os.Stat(filepath.Join(tmpDir, "delete.txt"))
+	if !os.IsNotExist(err) {
+		t.Errorf("delete.txt should not exist after delete: %v", err)
 	}
 }

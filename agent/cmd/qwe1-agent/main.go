@@ -97,8 +97,6 @@ func runEnroll(cfg *config.Config, days int) {
 	fmt.Println("Enter this token in the qwe1 app to pair")
 	fmt.Println("with this server.")
 	fmt.Println()
-
-	_ = base64.RawURLEncoding // ensure import is used
 }
 
 func runServer(cfg *config.Config) {

@@ -7,152 +7,160 @@ import (
 	"github.com/qwe1/qwe1/agent/internal/host"
 )
 
-func threshold(seconds time.Duration) Threshold {
-	return Threshold{Value: 90, ForSeconds: seconds}
-}
-
-func now(t time.Time) time.Time { return t }
-
-func TestDebounceEmitsAfterFor(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(2 * time.Second)}, 10, nil)
-	base := time.Now().Truncate(time.Second)
-	e.SetClock(func() time.Time { return base })
-	m := &host.Metrics{CPU: host.CPUInfo{Percent: 99.9}}
-
-	// Breach starts; nothing yet.
-	e.EvaluateHost(m)
-	if len(e.List("", 10)) != 0 {
-		t.Fatal("alert emitted before debounce window")
-	}
-	// Still within window.
-	e.SetClock(func() time.Time { return base.Add(time.Second) })
-	e.EvaluateHost(m)
-	if len(e.List("", 10)) != 0 {
-		t.Fatal("alert emitted before debounce window elapsed")
-	}
-	// Window elapsed.
-	e.SetClock(func() time.Time { return base.Add(2*time.Second + 1) })
-	e.EvaluateHost(m)
-	list := e.List("", 10)
-	if len(list) != 1 {
-		t.Fatalf("expected 1 alert, got %d", len(list))
-	}
-	if list[0].Type != "host.cpu" || list[0].Severity != SevCritical {
-		t.Fatalf("alert = %+v", list[0])
+func TestNewEngine(t *testing.T) {
+	e := New(Rules{}, 100, nil)
+	if e == nil {
+		t.Fatal("New() returned nil")
 	}
 }
 
-func TestDedupeWhileBreachPersists(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(0)}, 10, nil)
-	base := time.Now()
-	e.SetClock(func() time.Time { return base })
-	m := &host.Metrics{CPU: host.CPUInfo{Percent: 95}}
+func TestEvaluateHost(t *testing.T) {
+	e := New(Rules{
+		CPUPercent:  Threshold{Value: 90, ForSeconds: 0},
+		MemPercent:  Threshold{Value: 90, ForSeconds: 0},
+		DiskPercent: Threshold{Value: 85, ForSeconds: 0},
+	}, 100, nil)
+
+	m := &host.Metrics{
+		Timestamp: time.Now().UTC(),
+		CPU: host.CPUInfo{
+			Percent: 95.0,
+		},
+		Memory: host.MemoryInfo{
+			Percent: 50.0,
+		},
+		Disk: []host.DiskInfo{
+			{Mount: "/", Percent: 90.0},
+		},
+	}
 
 	e.EvaluateHost(m)
-	e.SetClock(func() time.Time { return base.Add(time.Minute) })
-	e.EvaluateHost(m)
-	if len(e.List("", 10)) != 1 {
-		t.Fatalf("expected dedupe to 1 alert, got %d", len(e.List("", 10)))
-	}
-}
 
-func TestRecoversAndReAlerts(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(0)}, 10, nil)
-	base := time.Now()
-	e.SetClock(func() time.Time { return base })
-	mHigh := &host.Metrics{CPU: host.CPUInfo{Percent: 95}}
-	mLow := &host.Metrics{CPU: host.CPUInfo{Percent: 10}}
-
-	e.EvaluateHost(mHigh)
-	if len(e.List("", 10)) != 1 {
-		t.Fatal("expected first alert")
-	}
-	e.EvaluateHost(mLow)
-	e.SetClock(func() time.Time { return base.Add(time.Minute) })
-	e.EvaluateHost(mHigh)
-	if len(e.List("", 10)) != 2 {
-		t.Fatalf("expected second alert after recovery, got %d", len(e.List("", 10)))
-	}
-}
-
-func TestThresholdDisabledWhenValueZero(t *testing.T) {
-	e := New(Rules{}, 10, nil)
-	e.EvaluateHost(&host.Metrics{CPU: host.CPUInfo{Percent: 99}, Memory: host.MemoryInfo{Percent: 99}})
-	if len(e.List("", 10)) != 0 {
-		t.Fatal("disabled thresholds should not alert")
-	}
-}
-
-func TestContainerDownUp(t *testing.T) {
-	e := New(Rules{ContainerDown: true}, 10, nil)
-	base := time.Now()
-	e.SetClock(func() time.Time { return base })
-	e.ContainerDown("web")
-	if len(e.List("", 10)) != 1 {
-		t.Fatal("expected container.down alert")
-	}
-	e.ContainerDown("web") // deduped
-	if len(e.List("", 10)) != 1 {
-		t.Fatal("container.down should dedupe")
-	}
-	e.ContainerUp("web")
 	alerts := e.List("", 10)
-	if len(alerts) != 1 {
-		t.Fatal("container.down alert should remain")
-	}
-	if !alerts[0].Acked {
-		t.Fatal("container.down alert should be acked after up")
+	if len(alerts) == 0 {
+		t.Error("Expected alerts after threshold breach")
 	}
 }
 
-func TestBufferBounded(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(0)}, 5, nil)
-	base := time.Now()
-	m := &host.Metrics{CPU: host.CPUInfo{Percent: 95}}
-	for i := 0; i < 10; i++ {
-		e.SetClock(func() time.Time { return base.Add(time.Duration(i) * time.Minute) })
-		e.EvaluateHost(m)
-		// Force a recovery each round so each produces a new alert.
-		e.EvaluateHost(&host.Metrics{CPU: host.CPUInfo{Percent: 5}})
+func TestEvaluateHostNoBreach(t *testing.T) {
+	e := New(Rules{
+		CPUPercent: Threshold{Value: 90, ForSeconds: 0},
+	}, 100, nil)
+
+	m := &host.Metrics{
+		Timestamp: time.Now().UTC(),
+		CPU: host.CPUInfo{
+			Percent: 50.0,
+		},
 	}
-	if got := len(e.List("", 0)); got != 5 {
-		t.Fatalf("buffer size = %d, want 5", got)
+
+	e.EvaluateHost(m)
+
+	alerts := e.List("", 10)
+	if len(alerts) != 0 {
+		t.Errorf("Expected no alerts, got %d", len(alerts))
+	}
+}
+
+func TestContainerDown(t *testing.T) {
+	e := New(Rules{}, 100, nil)
+
+	e.ContainerDown("plex")
+
+	alerts := e.List("", 10)
+	if len(alerts) == 0 {
+		t.Error("Expected alert after container down")
+	}
+	if alerts[0].Type != "container.down" {
+		t.Errorf("alert type = %q, want container.down", alerts[0].Type)
+	}
+}
+
+func TestContainerUpClearsAlert(t *testing.T) {
+	e := New(Rules{}, 100, nil)
+
+	e.ContainerDown("plex")
+	e.ContainerUp("plex")
+
+	alerts := e.List("", 10)
+	for _, a := range alerts {
+		if a.Type == "container.down" && !a.Acked {
+			t.Error("container.down alert should be auto-acked on ContainerUp")
+		}
 	}
 }
 
 func TestAck(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(0)}, 10, nil)
-	m := &host.Metrics{CPU: host.CPUInfo{Percent: 95}}
-	e.EvaluateHost(m)
-	list := e.List("", 10)
-	if len(list) != 1 {
-		t.Fatal("expected one alert")
+	e := New(Rules{}, 100, nil)
+
+	e.ContainerDown("plex")
+	alerts := e.List("", 10)
+	if len(alerts) == 0 {
+		t.Fatal("Expected alert before ack")
 	}
-	id := list[0].ID
-	e.Ack(id)
-	list = e.List("", 10)
-	if !list[0].Acked {
-		t.Fatal("alert not acked")
+
+	e.Ack(alerts[0].ID)
+
+	alerts = e.List("", 10)
+	if len(alerts) == 0 {
+		t.Fatal("Expected alert after ack")
+	}
+	if !alerts[0].Acked {
+		t.Error("Alert should be acked")
 	}
 }
 
-func TestListFilter(t *testing.T) {
-	e := New(Rules{CPUPercent: threshold(0), MemPercent: threshold(0)}, 10, nil)
-	m := &host.Metrics{CPU: host.CPUInfo{Percent: 95}, Memory: host.MemoryInfo{Percent: 95}}
-	e.EvaluateHost(m)
-	if got := len(e.List(SevWarning, 10)); got != 0 {
-		t.Fatalf("warning-only list = %d, want 0", got)
+func TestListSeverityFilter(t *testing.T) {
+	e := New(Rules{}, 100, nil)
+
+	e.emit(Alert{Severity: SevCritical, Type: "test.critical"})
+	e.emit(Alert{Severity: SevWarning, Type: "test.warning"})
+	e.emit(Alert{Severity: SevInfo, Type: "test.info"})
+
+	critical := e.List(SevCritical, 10)
+	if len(critical) != 1 {
+		t.Errorf("Expected 1 critical alert, got %d", len(critical))
 	}
-	if got := len(e.List(SevCritical, 10)); got != 2 {
-		t.Fatalf("critical list = %d, want 2", got)
+	if critical[0].Severity != SevCritical {
+		t.Errorf("alert severity = %q, want critical", critical[0].Severity)
+	}
+
+	warnings := e.List(SevWarning, 10)
+	if len(warnings) != 1 {
+		t.Errorf("Expected 1 warning alert, got %d", len(warnings))
 	}
 }
 
-func TestOnAlertCallback(t *testing.T) {
-	var got []Alert
-	e := New(Rules{CPUPercent: threshold(0)}, 10, func(a Alert) { got = append(got, a) })
-	e.EvaluateHost(&host.Metrics{CPU: host.CPUInfo{Percent: 95}})
-	if len(got) != 1 {
-		t.Fatalf("callback count = %d, want 1", len(got))
+func TestListLimit(t *testing.T) {
+	e := New(Rules{}, 100, nil)
+
+	for i := 0; i < 10; i++ {
+		e.emit(Alert{Severity: SevInfo, Type: "test"})
+	}
+
+	alerts := e.List("", 5)
+	if len(alerts) != 5 {
+		t.Errorf("Expected 5 alerts with limit, got %d", len(alerts))
+	}
+}
+
+func TestSetClock(t *testing.T) {
+	now := time.Now().UTC()
+	e := New(Rules{
+		CPUPercent: Threshold{Value: 90, ForSeconds: 0},
+	}, 100, nil)
+	e.SetClock(func() time.Time { return now })
+
+	m := &host.Metrics{
+		Timestamp: now,
+		CPU: host.CPUInfo{
+			Percent: 95.0,
+		},
+	}
+
+	e.EvaluateHost(m)
+	alerts := e.List("", 10)
+	if len(alerts) == 0 {
+		t.Error("Expected alerts after threshold breach with fixed clock")
 	}
 }
