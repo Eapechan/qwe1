@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# qwe1 agent automated test script.
+# qwe1 agent automated test script — run this ON the Linux server.
+#
+# Does the full pipeline in one go:
+#   git pull -> go vet -> unit tests -> build -> start agent -> E2E API checks -> report
 #
 # Usage:
-#   ./scripts/test-agent.sh            # pull main, build, unit tests, E2E API checks
-#   ./scripts/test-agent.sh --no-pull  # skip git pull (use local code)
-#   ./scripts/test-agent.sh --docker   # also run Docker lifecycle checks (requires Docker)
+#   ./scripts/test-agent.sh             # pull main, build, unit tests, E2E API checks
+#   ./scripts/test-agent.sh --no-pull   # skip git pull (use local code)
+#   ./scripts/test-agent.sh --docker    # also run Docker lifecycle checks (requires Docker)
+#   ./scripts/test-agent.sh --port 9443 # use a specific port
 #
-# Requires: bash 4+, curl, jq, go 1.22+.
+# Requires: bash 4+, curl, git, go 1.22+.
+# jq is optional (python3 is used as a fallback for JSON parsing).
 
 GREEN=$'\033[0;32m'
 RED=$'\033[0;31m'
@@ -23,7 +28,6 @@ PORT="9443"
 BASE_URL="http://127.0.0.1:${PORT}"
 WORK_DIR="$(mktemp -d)"
 CONFIG_FILE="${WORK_DIR}/config.yaml"
-AUTH_FILE="${WORK_DIR}/qwe1-test.auth.json"
 BIN="${WORK_DIR}/qwe1-agent"
 AGENT_PID=""
 DO_PULL=1
@@ -37,11 +41,12 @@ ok()   { echo -e "${GREEN}PASS${NC}  $*"; PASS=$((PASS + 1)); }
 bad()  { echo -e "${RED}FAIL${NC}  $*"; FAIL=$((FAIL + 1)); }
 skip() { echo -e "${YELLOW}SKIP${NC}  $*"; SKIP=$((SKIP + 1)); }
 
-for arg in "$@"; do
-    case "$arg" in
-        --no-pull) DO_PULL=0 ;;
-        --docker)  DO_DOCKER=1 ;;
-        *) echo "Unknown option: $arg" >&2; exit 2 ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-pull) DO_PULL=0; shift ;;
+        --docker)  DO_DOCKER=1; shift ;;
+        --port)    PORT="$2"; BASE_URL="http://127.0.0.1:${PORT}"; shift 2 ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
 
@@ -64,6 +69,7 @@ require() {
 }
 
 require curl
+require git
 require go
 
 # Minimal JSON field extractor. Uses jq when available, otherwise python3.
@@ -148,7 +154,7 @@ ok "enrollment token generated"
 
 # ---------------------------------------------------------------- start agent
 log "starting agent on ${BASE_URL}"
-( cd "$WORK_DIR" && "$BIN" --config "$CONFIG_FILE" > "$WORK_DIR/agent.log" 2>&1 ) &
+( cd "$WORK_DIR" && exec "$BIN" --config "$CONFIG_FILE" > "$WORK_DIR/agent.log" 2>&1 ) &
 AGENT_PID=$!
 sleep 1
 
@@ -268,7 +274,10 @@ if [[ "$DO_DOCKER" -eq 1 ]]; then
         PULL_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$AUTH" "${BASE_URL}/docker/images/${IMG}/pull")"
         check_status "POST /docker/images/alpine:latest/pull" 202 "$PULL_CODE"
 
-        CID="$(curl -s -H "$AUTH" "${BASE_URL}/docker/containers" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next((c["id"] for c in d.get("items",[]) if "alpine" in c.get("image","")), ""))')"
+        CONTAINERS="$(curl -s -H "$AUTH" "${BASE_URL}/docker/containers")"
+        CID="$(echo "$CONTAINERS" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+print(next((c["id"] for c in d.get("items",[]) if "alpine" in c.get("image","")), ""))' 2>/dev/null || echo '')"
         if [[ -n "$CID" ]]; then
             check_status "POST /docker/containers/${CID}/start" 200 "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$AUTH" "${BASE_URL}/docker/containers/${CID}/start")"
             check_status "POST /docker/containers/${CID}/restart" 200 "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$AUTH" "${BASE_URL}/docker/containers/${CID}/restart")"
