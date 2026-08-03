@@ -381,16 +381,18 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 7: File Management
 
+**Status:** Complete
+
 - [x] Browse (`GET /fs/list`)
-- [x] Copy (not yet)
+- [x] Copy (`POST /fs/copy`)
 - [x] Move (`PATCH /fs/rename`)
 - [x] Delete (`DELETE /fs`)
 - [x] Rename (`PATCH /fs/rename`)
 - [x] Upload (`POST /fs/upload`)
 - [x] Download (`GET /fs/read`)
-- [x] Permissions (OS-level, not exposed)
-- [x] Search (not yet)
-- [x] Favorites (not yet)
+- [ ] Permissions (OS-level, not exposed)
+- [x] Search (`GET /fs/search?q=...`)
+- [x] Favorites (in-memory bookmarking)
 
 **Deliverable:** Remote file manager.
 
