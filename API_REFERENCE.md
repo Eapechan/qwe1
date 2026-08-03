@@ -354,6 +354,147 @@ Get container logs.
 
 ---
 
+### GET `/docker/images`
+
+List Docker images.
+
+**Query params:** `all` (boolean, default false), `limit` (integer, default 50)
+
+**Response `200`**
+
+```json
+{
+  "items": [
+    {
+      "id": "sha256:abc123...",
+      "repoTags": ["plexinc/pms-docker:latest"],
+      "size": 524288000,
+      "createdAt": "2026-07-01T10:00:00Z"
+    }
+  ],
+  "total": 12
+}
+```
+
+### GET `/docker/images/{id}`
+
+Inspect a Docker image.
+
+**Response `200`**
+
+```json
+{
+  "id": "sha256:abc123...",
+  "repoTags": ["plexinc/pms-docker:latest"],
+  "size": 524288000,
+  "createdAt": "2026-07-01T10:00:00Z",
+  "config": { "entrypoint": ["/entrypoint.sh"], "cmd": ["start"] },
+  "layers": [
+    { "digest": "sha256:layer1", "size": 1048576 }
+  ]
+}
+```
+
+### POST `/docker/images/{id}/pull`
+
+Pull a Docker image.
+
+**Response `202`**
+
+```json
+{ "status": "pulling", "id": "sha256:abc123..." }
+```
+
+### DELETE `/docker/images/{id}`
+
+Remove a Docker image.
+
+**Query params:** `force` (boolean, default false)
+
+**Response `204`**
+
+---
+
+### GET `/docker/volumes`
+
+List Docker volumes.
+
+**Response `200`**
+
+```json
+{
+  "items": [
+    {
+      "name": "plex_data",
+      "driver": "local",
+      "size": 1073741824,
+      "mountpoint": "/var/lib/docker/volumes/plex_data/_data"
+    }
+  ],
+  "total": 5
+}
+```
+
+### GET `/docker/volumes/{name}`
+
+Inspect a Docker volume.
+
+**Response `200`**
+
+```json
+{
+  "name": "plex_data",
+  "driver": "local",
+  "size": 1073741824,
+  "mountpoint": "/var/lib/docker/volumes/plex_data/_data",
+  "labels": { "app": "plex" }
+}
+```
+
+---
+
+### GET `/docker/networks`
+
+List Docker networks.
+
+**Response `200`**
+
+```json
+{
+  "items": [
+    {
+      "id": "net_abc123",
+      "name": "bridge",
+      "driver": "bridge",
+      "subnet": "172.17.0.0/16",
+      "gateway": "172.17.0.1"
+    }
+  ],
+  "total": 3
+}
+```
+
+### GET `/docker/networks/{id}`
+
+Inspect a Docker network.
+
+**Response `200`**
+
+```json
+{
+  "id": "net_abc123",
+  "name": "bridge",
+  "driver": "bridge",
+  "subnet": "172.17.0.0/16",
+  "gateway": "172.17.0.1",
+  "containers": [
+    { "id": "container_abc", "name": "plex", "ipv4Address": "172.17.0.3" }
+  ]
+}
+```
+
+---
+
 ## Terminal
 
 ### POST `/terminal`
@@ -479,6 +620,86 @@ Delete a file or directory.
 
 ---
 
+### POST `/fs/copy`
+
+Copy a file or directory.
+
+**Request**
+
+```json
+{
+  "src": "config.yml",
+  "dst": "backup/config.yml"
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "src": "config.yml",
+  "dst": "backup/config.yml",
+  "size": 1024
+}
+```
+
+### GET `/fs/search`
+
+Search for files by name pattern.
+
+**Query params:** `pattern` (required, glob pattern), `path` (optional, root search path)
+
+**Response `200`**
+
+```json
+{
+  "items": [
+    { "path": "config.yml", "size": 1024, "modifiedAt": "2026-08-03T12:00:00Z" }
+  ],
+  "total": 3
+}
+```
+
+### GET `/fs/favorites`
+
+List bookmarked favorite paths.
+
+**Response `200`**
+
+```json
+{
+  "items": [
+    { "path": "/etc/config", "addedAt": "2026-08-03T12:00:00Z" }
+  ]
+}
+```
+
+### POST `/fs/favorites`
+
+Bookmark a path as a favorite.
+
+**Request**
+
+```json
+{ "path": "/etc/config" }
+```
+
+**Response `201`**
+
+```json
+{ "path": "/etc/config", "addedAt": "2026-08-03T12:00:00Z" }
+```
+
+### DELETE `/fs/favorites`
+
+**Query params:** `path` (required)
+
+Remove a favorite path.
+
+**Response `204`**
+
+---
+
 ## Alerts
 
 ### GET `/alerts`
@@ -573,6 +794,30 @@ List audit log entries, newest first.
 ```
 
 > **Status:** Stubbed — returns empty array.
+
+---
+
+## Profiling
+
+### GET `/debug/pprof/`
+
+List available pprof profiles.
+
+**Response `200`**
+
+```json
+{
+  "profiles": ["cpu", "heap", "goroutine", "threadcreate", "block", "mutex"]
+}
+```
+
+### GET `/debug/pprof/profile`
+
+Download a CPU profile.
+
+**Query params:** `seconds` (integer, default 30)
+
+**Response `200`** — binary gzip data
 
 ---
 

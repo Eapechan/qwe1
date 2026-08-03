@@ -112,15 +112,16 @@ agent/
 | Feature | Status | Details |
 |---------|--------|---------|
 | Authentication (enroll/refresh/revoke) | Working | HMAC-SHA256 tokens, refresh rotation, device management |
-| Host metrics | Working | CPU, RAM, swap, disk, network, temperature, uptime, load |
-| Docker management | Working | List, inspect, start/stop/restart/pause/unpause/kill/remove, logs |
-| File management | Working | List, read, write, upload, mkdir, rename, delete |
+| Host metrics | Working | CPU, RAM, swap, disk, network, temperature, uptime, load, cache, buffers, disk I/O, kernel, arch, OS, boot time, users, processes |
+| Docker management | Working | Containers, images, volumes, networks — list, inspect, lifecycle, logs |
+| File management | Working | List, read, write, upload, mkdir, rename, delete, copy, search, favorites |
 | Terminal (PTY) | Working | Create, kill, resize sessions |
 | Alerts engine | Working | Threshold evaluation with debounce and deduplication |
 | Real-time updates | Working | WebSocket hub with multiplexed channels |
 | Audit logging | Working | Bounded ring buffer of privileged actions |
 | Rate limiting | Working | Per-IP and per-token token-bucket limiter |
 | TLS | Working | TLS 1.3, self-signed ECDSA P-256 cert generation |
+| Performance profiling | Working | pprof endpoints for CPU/heap/goroutine profiles |
 
 ### API Endpoints
 
@@ -143,6 +144,14 @@ agent/
 | `DELETE` | `/docker/containers/{id}` | Yes | Remove container |
 | `GET` | `/docker/containers/{id}/inspect` | Yes | Inspect container |
 | `GET` | `/docker/containers/{id}/logs` | Yes | Container logs |
+| `GET` | `/docker/images` | Yes | List images |
+| `GET` | `/docker/images/{id}` | Yes | Inspect image |
+| `POST` | `/docker/images/{id}/pull` | Yes | Pull image |
+| `DELETE` | `/docker/images/{id}` | Yes | Remove image |
+| `GET` | `/docker/volumes` | Yes | List volumes |
+| `GET` | `/docker/volumes/{name}` | Yes | Inspect volume |
+| `GET` | `/docker/networks` | Yes | List networks |
+| `GET` | `/docker/networks/{id}` | Yes | Inspect network |
 | `POST` | `/terminal` | Yes | Create PTY session |
 | `DELETE` | `/terminal/{id}` | Yes | Kill terminal session |
 | `GET` | `/fs/list` | Yes | List directory contents |
@@ -152,11 +161,18 @@ agent/
 | `POST` | `/fs/write` | Yes | Write file |
 | `PATCH` | `/fs/rename` | Yes | Rename/move file |
 | `DELETE` | `/fs` | Yes | Delete file/directory |
+| `POST` | `/fs/copy` | Yes | Copy file/directory |
+| `GET` | `/fs/search` | Yes | Search files by pattern |
+| `GET` | `/fs/favorites` | Yes | List favorites |
+| `POST` | `/fs/favorites` | Yes | Add favorite |
+| `DELETE` | `/fs/favorites` | Yes | Remove favorite |
 | `GET` | `/alerts` | Yes | List alerts |
 | `PUT` | `/alerts/{id}/ack` | Yes | Acknowledge alert |
 | `GET` | `/alerts/thresholds` | Yes | Get alert thresholds (stubbed) |
 | `PUT` | `/alerts/thresholds` | Yes | Update alert thresholds (stubbed) |
 | `GET` | `/audit` | Yes | Audit log (stubbed) |
+| `GET` | `/debug/pprof/` | Yes | List pprof profiles |
+| `GET` | `/debug/pprof/profile` | Yes | CPU profile download |
 | `GET` | `/ws` | No | WebSocket endpoint |
 
 See [API_REFERENCE.md](API_REFERENCE.md) for full request/response schemas.
