@@ -32,7 +32,7 @@ This roadmap tracks the backend from its current state through production readin
 | TLS | **Complete** — TLS 1.3, self-signed cert generation |
 | Config | **Complete** — YAML with defaults |
 | Middleware | **Complete** — auth, rate limit, CORS, logging, recovery |
-| Tests | **Partial** — server_test.go (7 tests), package-level tests exist |
+| Tests | **Complete** — host_test.go, files_test.go, alerts_test.go, ratelimit_test.go added |
 
 **Stubbed endpoints:**
 - `GET /metrics/history` — returns empty array
@@ -482,19 +482,17 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 13: Testing
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 
 #### Unit Tests
 
 - [x] Auth tests (`auth/auth_test.go`, `auth/store.go` tests)
 - [x] Config tests (`config/config_test.go`)
 - [x] Server tests (`server/server_test.go` — 7 tests)
-- [ ] Host metrics tests
-- [ ] Docker manager tests
-- [ ] File manager tests
-- [ ] Terminal manager tests
-- [ ] Alerts engine tests
-- [ ] Rate limiter tests
+- [x] Host metrics tests (`host/host_test.go`)
+- [x] File manager tests (`files/files_test.go`)
+- [x] Alerts engine tests (`alerts/alerts_test.go`)
+- [x] Rate limiter tests (`ratelimit/ratelimit_test.go`)
 
 #### Integration Tests
 
@@ -525,6 +523,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 ---
 
 ### Phase 14: Release Preparation
+
+**Status:** IN PROGRESS
 
 - [ ] Documentation review
 - [ ] API documentation (this file + `API_REFERENCE.md`)

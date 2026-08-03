@@ -13,6 +13,28 @@ The format is based on [Conventional Commits](https://conventionalcommits.org/).
 - Complete backend agent with 31 REST endpoints and WebSocket support
 - Authentication system: enroll, refresh, revoke, device management
 - Host metrics collection: CPU, RAM, disk, network, temperature, uptime, load
+- Docker management: images, volumes, networks, container lifecycle
+- File management: CRUD, copy, search, favorites
+- Terminal (PTY): create, kill, resize
+- Alerts engine: threshold-based alerting with debounce and deduplication
+- Rate limiting: per-IP and per-token
+- TLS support: TLS 1.3, self-signed cert generation
+- Audit logging: ring buffer with handler
+- Performance profiling: pprof endpoints
+
+### Fixed
+
+- Dead code removal (enrollByHash, cleanupEnrollments, logLevel, perMinute, parseBool, base64 hack)
+- Missing metrics (Cache, Buffers, DiskIO, per-interface network, Kernel, Arch, OS, BootTime, Users, Processes)
+- Missing Docker features (image/volume/network CRUD)
+- Missing file features (copy, search, favorites)
+
+### Test
+
+- Added host_test.go (Collector, Metrics, pseudoFS)
+- Added files_test.go (Manager lifecycle, CRUD, copy, search, favorites)
+- Added alerts_test.go (Engine, threshold evaluation, container up/down, ack, list filtering)
+- Fixed compilation errors in test files
 - Docker management: container lifecycle, logs, inspect, stats, events
 - File management: list, read, write, upload, mkdir, rename, delete
 - Terminal (PTY): create, kill, resize sessions
