@@ -119,6 +119,20 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /docker/containers/{id}/inspect", s.authMiddleware(s.handleDockerInspect))
 	mux.HandleFunc("GET /docker/containers/{id}/logs", s.authMiddleware(s.handleDockerLogs))
 
+	// Docker images
+	mux.HandleFunc("GET /docker/images", s.authMiddleware(s.handleDockerImages))
+	mux.HandleFunc("GET /docker/images/{id}/inspect", s.authMiddleware(s.handleDockerImageInspect))
+	mux.HandleFunc("POST /docker/images/{id}/pull", s.authMiddleware(s.handleDockerImagePull))
+	mux.HandleFunc("DELETE /docker/images/{id}", s.authMiddleware(s.handleDockerImageDelete))
+
+	// Docker volumes
+	mux.HandleFunc("GET /docker/volumes", s.authMiddleware(s.handleDockerVolumes))
+	mux.HandleFunc("GET /docker/volumes/{name}/inspect", s.authMiddleware(s.handleDockerVolumeInspect))
+
+	// Docker networks
+	mux.HandleFunc("GET /docker/networks", s.authMiddleware(s.handleDockerNetworks))
+	mux.HandleFunc("GET /docker/networks/{id}/inspect", s.authMiddleware(s.handleDockerNetworkInspect))
+
 	// Terminal routes
 	mux.HandleFunc("POST /terminal", s.authMiddleware(s.handleTerminalCreate))
 	mux.HandleFunc("DELETE /terminal/{id}", s.authMiddleware(s.handleTerminalDelete))

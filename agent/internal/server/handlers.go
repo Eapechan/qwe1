@@ -338,6 +338,140 @@ func (s *Server) handleDockerLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleDockerImages(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	images, err := s.docker.ListImages(r.Context())
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"items": images,
+		"total": len(images),
+	})
+}
+
+func (s *Server) handleDockerImageInspect(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	id := r.PathValue("id")
+	info, err := s.docker.InspectImage(r.Context(), id)
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, info)
+}
+
+func (s *Server) handleDockerImagePull(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	id := r.PathValue("id")
+	if err := s.docker.PullImage(r.Context(), id); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusNoContent, nil)
+}
+
+func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	id := r.PathValue("id")
+	force := r.URL.Query().Get("force") == "true"
+
+	if err := s.docker.DeleteImage(r.Context(), id, force); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusNoContent, nil)
+}
+
+func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	volumes, err := s.docker.ListVolumes(r.Context())
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"items": volumes,
+		"total": len(volumes),
+	})
+}
+
+func (s *Server) handleDockerVolumeInspect(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	name := r.PathValue("name")
+	info, err := s.docker.InspectVolume(r.Context(), name)
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, info)
+}
+
+func (s *Server) handleDockerNetworks(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	networks, err := s.docker.ListNetworks(r.Context())
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"items": networks,
+		"total": len(networks),
+	})
+}
+
+func (s *Server) handleDockerNetworkInspect(w http.ResponseWriter, r *http.Request) {
+	if s.docker == nil {
+		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
+		return
+	}
+
+	id := r.PathValue("id")
+	info, err := s.docker.InspectNetwork(r.Context(), id)
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, info)
+}
+
 func (s *Server) handleTerminalCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Cols int `json:"cols"`
