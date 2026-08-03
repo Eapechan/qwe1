@@ -637,6 +637,48 @@ func (s *Server) handleFsDelete(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusNoContent, nil)
 }
 
+func (s *Server) handleFsCopy(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	}
+	if err := s.decodeJSON(r, &req); err != nil {
+		s.respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	if req.From == "" || req.To == "" {
+		s.respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "From and To are required")
+		return
+	}
+
+	if err := s.files.Copy(req.From, req.To); err != nil {
+		s.respondError(w, http.StatusInternalServerError, "FS_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusCreated, nil)
+}
+
+func (s *Server) handleFsSearch(w http.ResponseWriter, r *http.Request) {
+	pattern := r.URL.Query().Get("q")
+	if pattern == "" {
+		s.respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Search query is required")
+		return
+	}
+
+	results, err := s.files.Search(pattern)
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "FS_ERROR", err.Error())
+		return
+	}
+
+	s.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"items": results,
+		"total": len(results),
+	})
+}
+
 func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) {
 	severity := r.URL.Query().Get("severity")
 	alertList := s.alerts.List(severity, 100)

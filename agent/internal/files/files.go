@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -205,6 +206,196 @@ func (m *Manager) Rename(from, to string) error {
 		return err
 	}
 	return os.Rename(src, dst)
+}
+
+// Copy copies a file or directory from src to dst within the allowed roots.
+func (m *Manager) Copy(src, dst string) error {
+	srcPath, err := m.Resolve(src)
+	if err != nil {
+		return err
+	}
+	dstPath, err := m.Resolve(dst)
+	if err != nil {
+		return err
+	}
+
+	srcInfo, err := os.Lstat(srcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrNotFound
+		}
+		return err
+	}
+
+	if srcInfo.IsDir() {
+		return m.copyDir(srcPath, dstPath)
+	}
+	return m.copyFile(srcPath, dstPath)
+}
+
+func (m *Manager) copyFile(src, dst string) error {
+	if err := m.checkNotDir(dst); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func (m *Manager) copyDir(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		srcEntry := filepath.Join(src, entry.Name())
+		dstEntry := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			if err := m.copyDir(srcEntry, dstEntry); err != nil {
+				return err
+			}
+		} else {
+			if err := m.copyFile(srcEntry, dstEntry); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Search finds files matching a name pattern within the allowed roots.
+func (m *Manager) Search(pattern string) ([]Entry, error) {
+	var results []Entry
+	for _, root := range m.roots {
+		entries, err := m.searchDir(root, pattern)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, entries...)
+	}
+	return results, nil
+}
+
+func (m *Manager) searchDir(dir, pattern string) ([]Entry, error) {
+	var results []Entry
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	for _, e := range entries {
+		fullPath := filepath.Join(dir, e.Name())
+		if !m.hidden && strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		if strings.Contains(e.Name(), pattern) {
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			results = append(results, Entry{
+				Name:     e.Name(),
+				IsDir:    e.IsDir(),
+				Size:     info.Size(),
+				Mode:     info.Mode().String(),
+				Modified: info.ModTime().UTC(),
+			})
+		}
+		if e.IsDir() {
+			subResults, err := m.searchDir(fullPath, pattern)
+			if err != nil {
+				return nil, err
+			}
+			results = append(results, subResults...)
+		}
+	}
+	return results, nil
+}
+
+// Favorites is a bookmarked directory path within the allowed roots.
+type Favorites struct {
+	paths []string
+	mu    sync.RWMutex
+}
+
+// NewFavorites creates a Favorites manager with the given initial paths.
+func NewFavorites(paths []string) *Favorites {
+	return &Favorites{paths: paths}
+}
+
+// List returns the bookmarked paths.
+func (f *Favorites) List() []string {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	out := make([]string, len(f.paths))
+	copy(out, f.paths)
+	return out
+}
+
+// Add bookmarks a path.
+func (f *Favorites) Add(path string) error {
+	resolved, err := f.resolve(path)
+	if err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, p := range f.paths {
+		if p == resolved {
+			return nil // already bookmarked
+		}
+	}
+	f.paths = append(f.paths, resolved)
+	return nil
+}
+
+// Remove un-bookmarks a path.
+func (f *Favorites) Remove(path string) error {
+	resolved, err := f.resolve(path)
+	if err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	kept := f.paths[:0]
+	for _, p := range f.paths {
+		if p != resolved {
+			kept = append(kept, p)
+		}
+	}
+	f.paths = kept
+	return nil
+}
+
+func (f *Favorites) resolve(path string) (string, error) {
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("files: favorite path must be absolute: %q", path)
+	}
+	return filepath.Clean(path), nil
 }
 
 // Delete removes a file, or a directory when recursive is set.

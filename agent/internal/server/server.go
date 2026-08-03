@@ -145,6 +145,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /fs/write", s.authMiddleware(s.handleFsWrite))
 	mux.HandleFunc("PATCH /fs/rename", s.authMiddleware(s.handleFsRename))
 	mux.HandleFunc("DELETE /fs", s.authMiddleware(s.handleFsDelete))
+	mux.HandleFunc("POST /fs/copy", s.authMiddleware(s.handleFsCopy))
+	mux.HandleFunc("GET /fs/search", s.authMiddleware(s.handleFsSearch))
 
 	// Alert routes
 	mux.HandleFunc("GET /alerts", s.authMiddleware(s.handleAlerts))
