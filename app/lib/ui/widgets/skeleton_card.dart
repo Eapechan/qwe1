@@ -27,15 +27,17 @@ class SkeletonCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Shimmer.fromColors(
-                  baseColor: colors.border,
-                  highlightColor: colors.shimmer,
-                  child: Container(
-                    height: 20,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: colors.border,
-                      borderRadius: BorderRadius.circular(4),
+                Expanded(
+                  child: Shimmer.fromColors(
+                    baseColor: colors.border,
+                    highlightColor: colors.shimmer,
+                    child: Container(
+                      height: 20,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: colors.border,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                 ),

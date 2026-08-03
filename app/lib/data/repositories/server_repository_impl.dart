@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
-import 'package:qwe1/data/models/server_dto.dart';
 import 'package:qwe1/data/models/metrics_dto.dart';
 import 'package:qwe1/data/sources/remote/api_client.dart';
 import 'package:qwe1/data/sources/remote/web_socket_client.dart';
@@ -96,10 +95,6 @@ class ServerRepositoryImpl implements ServerRepository {
     final accessToken = data['accessToken'] as String;
     final refreshToken = data['refreshToken'] as String;
     final serverFingerprint = data['serverFingerprint'] as String;
-
-    // Get server status
-    final statusResponse = await client.get('/status');
-    final statusData = statusResponse.data as Map<String, dynamic>;
 
     final serverId = const Uuid().v4();
     final now = DateTime.now();

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:qwe1/data/models/container_dto.dart';
 import 'package:qwe1/data/sources/remote/api_client.dart';
-import 'package:qwe1/data/sources/remote/web_socket_client.dart';
 import 'package:qwe1/domain/entities/container.dart';
 import 'package:qwe1/domain/repositories/docker_repository.dart';
 import 'package:qwe1/domain/repositories/server_repository.dart';

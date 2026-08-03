@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:qwe1/domain/entities/server.dart';
-import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/status_indicator.dart';
 
 class ServerCard extends StatelessWidget {

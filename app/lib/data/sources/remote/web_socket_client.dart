@@ -89,7 +89,6 @@ class WebSocketClient {
       try {
         final data = jsonDecode(message) as Map<String, dynamic>;
         final channel = data['ch'] as String?;
-        final type = data['type'] as String?;
         final payload = data['data'];
 
         if (channel != null && _channels.containsKey(channel)) {
