@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -44,9 +46,10 @@ type enrollRecord struct {
 }
 
 type fileState struct {
-	Refresh []refreshRecord `json:"refresh"`
-	Enroll  []enrollRecord  `json:"enroll"`
-	Devices []Device        `json:"devices"`
+	Refresh      []refreshRecord `json:"refresh"`
+	Enroll       []enrollRecord  `json:"enroll"`
+	Devices      []Device        `json:"devices"`
+	SignerSecret string          `json:"signerSecret"`
 }
 
 // Store is a persisted, mutex-guarded store of token hashes and devices.
@@ -58,6 +61,8 @@ type Store struct {
 }
 
 // NewStore loads the store from path, creating an empty one if absent.
+// If no signer secret is present, one is generated and persisted so tokens
+// survive process restarts.
 func NewStore(path string) (*Store, error) {
 	s := &Store{path: path}
 	b, err := os.ReadFile(path)
@@ -76,6 +81,16 @@ func NewStore(path string) (*Store, error) {
 	}
 	if s.fs.Devices == nil {
 		s.fs.Devices = []Device{}
+	}
+	// Ensure a signer secret exists so HMAC tokens survive restarts.
+	if s.fs.SignerSecret == "" {
+		secret := make([]byte, 32)
+		if _, err := rand.Read(secret); err != nil {
+			return nil, err
+		}
+		s.fs.SignerSecret = hex.EncodeToString(secret)
+		// Don't persist here — the caller (runEnroll or server) will
+		// persist after its own mutations, avoiding Reload() overwrites.
 	}
 	return s, nil
 }
@@ -110,10 +125,17 @@ func (s *Store) Reload() error {
 	return nil
 }
 
-// Persist writes the state to disk atomically.
+// Persist writes the state to disk atomically. Takes the write lock so
+// concurrent mutations and Reload cannot interleave with the marshal/rename.
 func (s *Store) Persist() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.persistLocked()
+}
+
+// persistLocked writes the state to disk without acquiring the mutex.
+// Caller must hold s.mu.
+func (s *Store) persistLocked() error {
 	b, err := json.Marshal(&s.fs)
 	if err != nil {
 		return err
@@ -126,6 +148,47 @@ func (s *Store) Persist() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// SignerSecret returns the hex-encoded HMAC signer secret.
+func (s *Store) SignerSecret() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.fs.SignerSecret
+}
+
+// SetSignerSecret updates the signer secret in memory (call Persist to write).
+func (s *Store) SetSignerSecret(hex string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fs.SignerSecret = hex
+}
+
+// RotateRefresh atomically validates the old refresh token, marks it used,
+// appends a new record, and touches the device — all under a single lock.
+// Returns the deviceID on success; false if the old token is invalid.
+func (s *Store) RotateRefresh(oldHash, newHash, deviceID string, expiresAt time.Time) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.fs.Refresh {
+		if s.fs.Refresh[i].Hash == oldHash {
+			if s.fs.Refresh[i].Used || s.fs.Refresh[i].Revoked {
+				return false
+			}
+			if time.Now().After(s.fs.Refresh[i].ExpiresAt) {
+				return false
+			}
+			s.fs.Refresh[i].Used = true
+			s.fs.Refresh = append(s.fs.Refresh, refreshRecord{
+				Hash:      newHash,
+				DeviceID:  deviceID,
+				ExpiresAt: expiresAt,
+			})
+			s.touchDeviceLocked(deviceID)
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Store) AddEnrollment(hash string, expiresAt time.Time) {

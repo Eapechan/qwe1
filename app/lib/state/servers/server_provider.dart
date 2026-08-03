@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/domain/entities/server.dart';
 import 'package:qwe1/domain/entities/metrics.dart';
@@ -12,9 +14,24 @@ final serverListProvider = StateNotifierProvider<ServerListNotifier, AsyncValue<
 class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
   ServerListNotifier(this.ref) : super(const AsyncValue.loading()) {
     loadServers();
+    _startStatusTimer();
   }
 
   final Ref ref;
+  Timer? _statusTimer;
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startStatusTimer() {
+    _statusTimer?.cancel();
+    _statusTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      refreshStatuses();
+    });
+  }
 
   Future<void> loadServers() async {
     state = const AsyncValue.loading();
@@ -78,13 +95,16 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
   }) async {
     try {
       final repository = ref.read(serverRepositoryProvider);
-      await repository.addServer(
+      final server = await repository.addServer(
         name: name,
         agentUrl: agentUrl,
         enrollmentToken: enrollmentToken,
         tailscaleUrl: tailscaleUrl,
         groupName: groupName,
       );
+      // Mark the server as online immediately — we just successfully
+      // enrolled, so it is reachable.
+      await repository.updateServer(server.copyWith(status: 'online'));
       await loadServers();
     } catch (e, st) {
       state = AsyncValue.error(e, st);

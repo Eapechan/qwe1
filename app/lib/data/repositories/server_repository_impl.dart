@@ -83,16 +83,6 @@ class ServerRepositoryImpl implements ServerRepository {
     String tailscaleUrl = '',
     String groupName = '',
   }) async {
-    // If a server for this agentUrl already exists (e.g. a previous enroll
-    // succeeded server-side but the app failed to persist it), reuse it
-    // instead of consuming a fresh one-time enrollment token.
-    final existing = await _findByAgentUrl(agentUrl);
-    if (existing != null) {
-      // Tokens were already issued and persisted for this server.
-      await _ensureClient(existing.id, existing.agentUrl);
-      return getServer(existing.id);
-    }
-
     final client = ApiClient(baseUrl: agentUrl);
 
     // Exchange enrollment token for credentials
@@ -110,7 +100,10 @@ class ServerRepositoryImpl implements ServerRepository {
     final refreshToken = data['refreshToken'] as String;
     final serverFingerprint = data['serverFingerprint'] as String;
 
-    final serverId = const Uuid().v4();
+    // If a server for this agent URL already exists, update its credentials
+    // instead of creating a duplicate row.
+    final existing = await _findByAgentUrl(agentUrl);
+    final serverId = existing?.id ?? const Uuid().v4();
     final now = DateTime.now();
 
     // Persist every credential BEFORE any further step that could throw,
@@ -120,17 +113,28 @@ class ServerRepositoryImpl implements ServerRepository {
     await secureStorage.saveFingerprint(serverId, serverFingerprint);
 
     // Persist the server row (database).
-    try {
-      await database.insertServer(db.ServersCompanion.insert(
-        id: serverId,
-        name: name,
-        agentUrl: agentUrl,
+    if (existing != null) {
+      // Update existing row — reuse ID, update credentials and timestamp.
+      await database.updateServer(db.ServersCompanion(
+        id: Value(serverId),
+        name: Value(name),
+        agentUrl: Value(agentUrl),
         tailscaleUrl: Value(tailscaleUrl.isEmpty ? null : tailscaleUrl),
-        createdAt: now,
+        createdAt: Value(now),
       ));
-    } catch (e) {
-      debugPrint('[server] failed to persist server row for $serverId: $e');
-      rethrow;
+    } else {
+      try {
+        await database.insertServer(db.ServersCompanion.insert(
+          id: serverId,
+          name: name,
+          agentUrl: agentUrl,
+          tailscaleUrl: Value(tailscaleUrl.isEmpty ? null : tailscaleUrl),
+          createdAt: now,
+        ));
+      } catch (e) {
+        debugPrint('[server] failed to persist server row for $serverId: $e');
+        rethrow;
+      }
     }
 
     // Cache client (restore on refresh/startup via _ensureClient)
@@ -328,7 +332,10 @@ class ServerRepositoryImpl implements ServerRepository {
 
   Future<void> _connectWebSocket(String serverId, List<String> channels) async {
     final server = await getServer(serverId);
-    final token = await secureStorage.getAccessToken(serverId);
+    // Refresh the access token before connecting — tokens have a 15-min TTL
+    // and the WebSocket path never refreshes on its own.
+    var token = await _refreshAccessToken(serverId);
+    token ??= await secureStorage.getAccessToken(serverId);
     if (token == null) throw Exception('Not authenticated');
 
     final wsClient = WebSocketClient(baseUrl: server.agentUrl);

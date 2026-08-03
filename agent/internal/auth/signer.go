@@ -17,6 +17,11 @@ type Signer struct {
 	secret []byte
 }
 
+// Secret returns the raw HMAC secret bytes (for persistence).
+func (s *Signer) Secret() []byte {
+	return s.secret
+}
+
 // NewSigner creates a signer with the given hex-encoded secret.
 // If secret is empty, a random one is generated (for single-instance use).
 func NewSigner(secretHex string) (*Signer, error) {

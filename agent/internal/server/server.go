@@ -45,16 +45,23 @@ func New(cfg *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to create auth store: %w", err)
 	}
 
-	signer, err := auth.NewSigner("")
+	// Use the persisted signer secret so tokens survive process restarts.
+	signer, err := auth.NewSigner(authStore.SignerSecret())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token signer: %w", err)
 	}
 
-	hostCollector := host.NewCollector(time.Duration(cfg.Host.MetricsInterval) * time.Second)
+	// Guard against metricsInterval=0 which would panic time.NewTicker.
+	metricsInterval := time.Duration(cfg.Host.MetricsInterval) * time.Second
+	if metricsInterval <= 0 {
+		metricsInterval = 5 * time.Second
+	}
+
+	hostCollector := host.NewCollector(metricsInterval)
 
 	var dockerClient *docker.Manager
 	if cfg.Docker.Enabled {
-		dockerClient, err = docker.New()
+		dockerClient, err = docker.New(cfg.Docker.SocketPath)
 		if err != nil {
 			slog.Warn("failed to connect to docker", "error", err)
 		}
@@ -188,6 +195,9 @@ func (s *Server) Run(ctx context.Context) error {
 	// Start alerts evaluation via host metrics
 	go func() {
 		ticker := time.NewTicker(time.Duration(s.cfg.Host.MetricsInterval) * time.Second)
+		if ticker == nil {
+			return // metricsInterval <= 0; should never happen with guard in New
+		}
 		defer ticker.Stop()
 		for {
 			select {

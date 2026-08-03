@@ -118,63 +118,58 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(req.RefreshToken)
-	refresh, ok := s.auth.RefreshByHash(hash)
-	if !ok {
-		s.respondError(w, http.StatusUnauthorized, "INVALID_TOKEN", "Invalid refresh token")
-		return
-	}
 
-	if refresh.Used {
-		s.auth.RevokeDevice(refresh.DeviceID)
-		if err := s.auth.Persist(); err != nil {
-			s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
-			return
-		}
-		s.respondError(w, http.StatusUnauthorized, "TOKEN_REUSE", "Refresh token reuse detected, device revoked")
-		return
-	}
-
-	if time.Now().After(refresh.ExpiresAt) {
-		s.auth.RevokeDevice(refresh.DeviceID)
-		if err := s.auth.Persist(); err != nil {
-			s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
-			return
-		}
-		s.respondError(w, http.StatusUnauthorized, "TOKEN_EXPIRED", "Refresh token expired")
-		return
-	}
-
-	s.auth.MarkRefreshUsed(hash)
-
-	deviceID := refresh.DeviceID
 	accessTokenTTL := time.Duration(s.cfg.Auth.AccessTokenTTL) * time.Second
 	refreshTokenTTL := time.Duration(s.cfg.Auth.RefreshTokenTTL) * time.Second
+	deviceID := "" // determined inside RotateRefresh
 
-	accessToken, err := s.signer.GenerateAccessToken(deviceID, accessTokenTTL)
+	// Generate the new tokens first (may fail without holding locks).
+	accessToken, err := s.signer.GenerateAccessToken("placeholder", accessTokenTTL)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate access token")
 		return
 	}
-
 	newRefreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate refresh token")
 		return
 	}
 
+	// Get the deviceID from the existing record (read-only lookup).
+	refresh, ok := s.auth.RefreshByHash(hash)
+	if !ok {
+		s.respondError(w, http.StatusUnauthorized, "INVALID_TOKEN", "Invalid refresh token")
+		return
+	}
+	deviceID = refresh.DeviceID
+
+	// Regenerate the access token with the real deviceID.
+	accessToken, err = s.signer.GenerateAccessToken(deviceID, accessTokenTTL)
+	if err != nil {
+		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate access token")
+		return
+	}
+
+	// Atomic rotate: mark old used, add new record, touch device — single lock.
 	now := time.Now().UTC()
-	s.auth.AddRefresh(auth.HashToken(newRefreshToken), deviceID, now.Add(refreshTokenTTL))
+	if !s.auth.RotateRefresh(hash, auth.HashToken(newRefreshToken), deviceID, now.Add(refreshTokenTTL)) {
+		// Reuse or expired — revoke the device to be safe.
+		s.auth.RevokeDevice(deviceID)
+		_ = s.auth.Persist()
+		s.respondError(w, http.StatusUnauthorized, "TOKEN_REUSE", "Refresh token reuse detected or expired, device revoked")
+		return
+	}
 	if err := s.auth.Persist(); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
 		return
 	}
 
 	s.respondJSON(w, http.StatusOK, map[string]interface{}{
-		"accessToken":       accessToken,
-		"refreshToken":      newRefreshToken,
-		"tokenType":         "Bearer",
-		"expiresIn":         s.cfg.Auth.AccessTokenTTL,
-		"refreshExpiresIn":  s.cfg.Auth.RefreshTokenTTL,
+		"accessToken":      accessToken,
+		"refreshToken":     newRefreshToken,
+		"tokenType":        "Bearer",
+		"expiresIn":        s.cfg.Auth.AccessTokenTTL,
+		"refreshExpiresIn": s.cfg.Auth.RefreshTokenTTL,
 	})
 }
 
@@ -335,7 +330,12 @@ func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
 	}
 	s.decodeJSON(r, &req)
 
-	if err := s.docker.Kill(r.Context(), id); err != nil {
+	signal := req.Signal
+	if signal == "" {
+		signal = r.URL.Query().Get("signal")
+	}
+
+	if err := s.docker.KillSignal(r.Context(), id, signal); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}

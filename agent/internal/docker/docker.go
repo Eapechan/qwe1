@@ -76,11 +76,19 @@ type Manager struct {
 	cli *client.Client
 }
 
-// New creates a Manager from the Docker environment (defaults to the local
-// unix socket). It returns nil, nil if Docker is not reachable so the agent
-// can report the capability as absent.
-func New() (*Manager, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+// New creates a Manager from the Docker environment. socketPath is optional;
+// when non-empty it overrides DOCKER_HOST (e.g. "unix:///var/run/docker.sock").
+// Returns nil, nil if Docker is not reachable so the agent can report the
+// capability as absent.
+func New(socketPath string) (*Manager, error) {
+	var opts []client.Opt
+	opts = append(opts, client.WithAPIVersionNegotiation())
+	if socketPath != "" {
+		opts = append(opts, client.WithHost(socketPath))
+	} else {
+		opts = append(opts, client.FromEnv)
+	}
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +112,12 @@ func (m *Manager) ListContainers(ctx context.Context, withStats bool) ([]Contain
 	}
 	out := make([]Container, 0, len(cs))
 	for _, c := range cs {
-		name := strings.TrimPrefix(c.Names[0], "/")
+		name := ""
+		if len(c.Names) > 0 {
+			name = strings.TrimPrefix(c.Names[0], "/")
+		} else {
+			name = c.ID[:12]
+		}
 		ct := Container{
 			ID:        c.ID,
 			Name:      name,
@@ -242,7 +255,9 @@ func (w *lineWriter) Write(p []byte) (int, error) {
 }
 
 // StreamLogs tails (and optionally follows) container logs, invoking cb per
-// complete line. Errors after streaming starts abort the stream.
+// complete line. For TTY containers the multiplexed header is absent, so
+// raw output is treated as stdout. Errors after streaming starts abort
+// the stream.
 func (m *Manager) StreamLogs(ctx context.Context, id string, tail int, follow bool, cb func(LogLine)) error {
 	if tail <= 0 {
 		tail = 200
@@ -259,7 +274,20 @@ func (m *Manager) StreamLogs(ctx context.Context, id string, tail int, follow bo
 	}
 	defer rd.Close()
 
+	// Inspect to check if the container is TTY (no multiplexed header).
+	info, inspectErr := m.cli.ContainerInspect(ctx, id)
+	isTTY := inspectErr == nil && info.Config != nil && info.Config.Tty
+
 	var seq uint64
+	if isTTY {
+		// TTY output is raw bytes — write directly to stdout line-writer.
+		w := &lineWriter{stream: "stdout", cb: cb, seq: &seq}
+		if _, err := io.Copy(w, rd); err != nil && ctx.Err() == nil {
+			return err
+		}
+		return nil
+	}
+
 	outW := &lineWriter{stream: "stdout", cb: cb, seq: &seq}
 	errW := &lineWriter{stream: "stderr", cb: cb, seq: &seq}
 	_, err = stdcopy.StdCopy(outW, errW, rd)
@@ -331,6 +359,14 @@ func (m *Manager) Unpause(ctx context.Context, id string) error {
 // Kill sends SIGKILL to a container.
 func (m *Manager) Kill(ctx context.Context, id string) error {
 	return m.cli.ContainerKill(ctx, id, "KILL")
+}
+
+// KillSignal sends the specified signal to a container.
+func (m *Manager) KillSignal(ctx context.Context, id, signal string) error {
+	if signal == "" {
+		signal = "KILL"
+	}
+	return m.cli.ContainerKill(ctx, id, signal)
 }
 
 // Remove deletes a container (optionally force and/or removing volumes).
