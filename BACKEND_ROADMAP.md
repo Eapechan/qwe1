@@ -168,6 +168,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 2: Core Infrastructure
 
+**Status:** Complete
+
 #### 2.1 Configuration
 
 - [x] Config loader (`internal/config/config.go`)
@@ -179,7 +181,7 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 - [x] Structured logging (`log/slog`)
 - [x] Log levels (debug, info, warn, error)
-- [x] File logging (needs implementation)
+- [ ] File logging (add file handler option)
 - [x] Console logging (stdout JSON)
 
 #### 2.3 Middleware
@@ -189,7 +191,7 @@ Documented backend audit with current state assessment, dead code removal, and g
 - [x] Recovery (panic → 500)
 - [x] Request logging (`middleware.go`)
 - [x] Rate limiting (`ratelimit/ratelimit.go`)
-- [x] Validation (partial — input validation in handlers)
+- [ ] Validation (add request body validation helpers)
 
 #### 2.4 Utilities
 
