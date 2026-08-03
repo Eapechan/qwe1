@@ -482,6 +482,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 13: Testing
 
+**Status:** IN PROGRESS
+
 #### Unit Tests
 
 - [x] Auth tests (`auth/auth_test.go`, `auth/store.go` tests)
