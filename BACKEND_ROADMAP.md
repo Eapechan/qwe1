@@ -269,7 +269,7 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 5: System Monitoring
 
-**Status:** IN PROGRESS
+**Status:** Complete
 
 #### CPU
 
@@ -322,14 +322,16 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 6: Docker Integration
 
+**Status:** IN PROGRESS
+
 #### Container Discovery
 
 - [x] List containers
 - [x] Status
 - [x] Health
-- [x] Labels (not yet)
+- [ ] Labels (not yet)
 - [x] Ports
-- [x] Images (not yet)
+- [ ] Images (not yet)
 
 #### Container Actions
 
@@ -346,15 +348,15 @@ Documented backend audit with current state assessment, dead code removal, and g
 - [x] Streaming (`StreamLogs`)
 - [x] Filtering (by tail count)
 - [x] Tail
-- [x] Search (not yet)
+- [ ] Search (not yet)
 
 #### Container Stats
 
 - [x] CPU
 - [x] RAM
-- [x] Network (not yet in stats)
-- [x] Disk IO (not yet in stats)
-- [x] PIDs (not yet in stats)
+- [ ] Network (not yet in stats)
+- [ ] Disk IO (not yet in stats)
+- [ ] PIDs (not yet in stats)
 
 #### Images
 
