@@ -1,0 +1,58 @@
+# qwe1 agent production configuration
+#
+# Copy this file to /etc/qwe1/config.yaml on your Linux server, then edit the
+# values to match your environment. See scripts/setup-production.sh for a
+# guided install (certs, systemd, firewalld).
+
+serverName: my-server
+listenHost: 0.0.0.0
+listenPort: 9443
+
+# TLS — REQUIRED for production. Generate certs with scripts/setup-production.sh
+# or your own CA/Let's Encrypt certs.
+tlsCertPath: /etc/qwe1/certs/cert.pem
+tlsKeyPath: /etc/qwe1/certs/key.pem
+
+auth:
+  # Length of the raw enrollment token in characters.
+  tokenLength: 16
+  # Access token lifetime in seconds (15m).
+  accessTokenTTL: 900
+  # Refresh token lifetime in seconds (30d).
+  refreshTokenTTL: 2592000
+  # Failed enrollment attempts before lockout.
+  maxAttempts: 5
+  # Lockout duration in seconds (30m).
+  lockoutDuration: 1800
+
+docker:
+  enabled: true
+  socketPath: /var/run/docker.sock
+
+host:
+  # Metrics collection interval in seconds.
+  metricsInterval: 5
+  # Linux thermal zone path for temperature sensors.
+  temperaturePath: /sys/class/thermal
+
+terminal:
+  # Max concurrent PTY sessions.
+  maxSessions: 4
+  # Idle timeout in seconds before killing a session.
+  idleTimeout: 300
+
+files:
+  # Directories the app can browse/manage. Use absolute paths.
+  allowedRoots:
+    - /home
+    - /var/log
+    - /etc
+  # Max single upload size in bytes (500 MB).
+  maxUpload: 524288000
+
+alerts:
+  enabled: true
+  bufferSize: 1000
+  # Optional push notifications — set one or both.
+  # webhookUrl: "https://example.com/hook"
+  # ntfyTopic: "my-server-alerts"

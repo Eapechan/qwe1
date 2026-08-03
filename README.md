@@ -68,6 +68,15 @@ Build the APK or install from releases, then enter your server URL and the enrol
 
 See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
 
+For a production deployment with TLS certs + systemd autostart:
+
+```bash
+git clone https://github.com/Eapechan/qwe1.git && cd qwe1
+./scripts/setup-production.sh --server my-server --port 9443
+```
+
+A commented production config template lives at [`config.example.yaml`](config.example.yaml).
+
 ## Architecture
 
 ```

@@ -168,6 +168,37 @@ Copy the **Enrollment Token** — you'll paste it into the app.
 
 > **Note**: The token is a one-time-use code. Once a device enrolls with it, the token is marked as used. Generate a new one for each device.
 
+### Production install (TLS + systemd)
+
+For a real deployment, run the guided installer on your server. It cross-builds the
+agent, generates self-signed TLS certs, installs the binary to `/usr/local/bin`,
+writes a hardened config to `/etc/qwe1/config.yaml`, and registers a systemd service
+that auto-starts on boot.
+
+```bash
+git clone https://github.com/Eapechan/qwe1.git && cd qwe1
+./scripts/setup-production.sh --server my-server --port 9443
+```
+
+After it finishes, the agent runs as HTTPS on `https://YOUR_SERVER_IP:9443`. The
+script prints the server fingerprint and enrollment token — enter both in the app to
+pair securely. A commented reference config lives at `config.example.yaml`.
+
+Manual steps it performs (use these if you prefer your own TLS/certs):
+
+1. **Generate certs** — either your CA's certs or self-signed:
+   ```bash
+   sudo mkdir -p /etc/qwe1/certs
+   sudo openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -sha256 \
+     -subj "/CN=my-server" \
+     -addext "subjectAltName=DNS:my-server,IP:YOUR_SERVER_IP" \
+     -keyout /etc/qwe1/certs/key.pem -out /etc/qwe1/certs/cert.pem
+   sudo chmod 600 /etc/qwe1/certs/key.pem
+   ```
+2. **Point the config at the certs** — set `tlsCertPath` and `tlsKeyPath` in `/etc/qwe1/config.yaml` (see `config.example.yaml`).
+3. **Run as a service** (example): `/usr/local/bin/qwe1-agent --config /etc/qwe1/config.yaml`.
+4. **Open the port**: `sudo ufw allow 9443/tcp` or `sudo firewall-cmd --permanent --add-port=9443/tcp && sudo firewall-cmd --reload`.
+
 ---
 
 ## Part 2: Build the Flutter APK
