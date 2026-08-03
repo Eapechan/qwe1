@@ -6,14 +6,14 @@ The format is based on [Conventional Commits](https://conventionalcommits.org/).
 
 ---
 
-## [1.0.0-rc] — 2026-08-03
+## [1.0.0] — 2026-08-03
 
 ### Added
 
 - Complete backend agent with 31 REST endpoints and WebSocket support
 - Authentication system: enroll, refresh, revoke, device management
-- Host metrics collection: CPU, RAM, disk, network, temperature, uptime, load
-- Docker management: images, volumes, networks, container lifecycle
+- Host metrics collection: CPU, RAM, disk, network, temperature, uptime, load, cache, buffers, disk I/O, kernel, arch, OS, boot time, users, processes
+- Docker management: containers, images, volumes, networks — list, inspect, lifecycle, logs
 - File management: CRUD, copy, search, favorites
 - Terminal (PTY): create, kill, resize
 - Alerts engine: threshold-based alerting with debounce and deduplication
@@ -21,6 +21,7 @@ The format is based on [Conventional Commits](https://conventionalcommits.org/).
 - TLS support: TLS 1.3, self-signed cert generation
 - Audit logging: ring buffer with handler
 - Performance profiling: pprof endpoints
+- Unit tests for host, files, alerts packages
 
 ### Fixed
 
@@ -29,12 +30,10 @@ The format is based on [Conventional Commits](https://conventionalcommits.org/).
 - Missing Docker features (image/volume/network CRUD)
 - Missing file features (copy, search, favorites)
 
-### Test
+### Changed
 
-- Added host_test.go (Collector, Metrics, pseudoFS)
-- Added files_test.go (Manager lifecycle, CRUD, copy, search, favorites)
-- Added alerts_test.go (Engine, threshold evaluation, container up/down, ack, list filtering)
-- Fixed compilation errors in test files
+- API reference updated with all new endpoints
+- README updated with v1.0 feature list and complete endpoint table
 - Docker management: container lifecycle, logs, inspect, stats, events
 - File management: list, read, write, upload, mkdir, rename, delete
 - Terminal (PTY): create, kill, resize sessions
