@@ -156,29 +156,6 @@ func (s *Store) EnrollByHash(hash string) (enrollRecord, bool) {
 	return enrollRecord{}, false
 }
 
-func (s *Store) enrollByHash(hash string) (enrollRecord, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, e := range s.fs.Enroll {
-		if e.Hash == hash {
-			return e, true
-		}
-	}
-	return enrollRecord{}, false
-}
-
-func (s *Store) cleanupEnrollments(now time.Time) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	kept := s.fs.Enroll[:0]
-	for _, e := range s.fs.Enroll {
-		if now.Before(e.ExpiresAt) {
-			kept = append(kept, e)
-		}
-	}
-	s.fs.Enroll = kept
-}
-
 func (s *Store) AddRefresh(hash, deviceID string, expiresAt time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

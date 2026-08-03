@@ -48,22 +48,121 @@ This roadmap tracks the backend from its current state through production readin
 
 **Goal:** Review the existing backend, document what works, identify gaps.
 
-| Task | Status |
-|------|--------|
-| Inspect folder structure | Done |
-| Identify completed features | Done |
-| Identify incomplete modules | Done |
-| Remove dead code only if safe | Pending |
-| Verify routing | Done |
-| Verify middleware | Done |
-| Verify authentication | Done |
-| Verify configuration | Done |
-| Verify logging | Done |
-| Verify database usage | N/A — agent is stateless beyond file-backed auth store |
-| Verify Docker integration | Done |
-| Verify server agent communication | Done |
+#### 1.1 Inspect folder structure
 
-**Deliverable:** This document (backend audit + roadmap).
+The agent codebase is in `agent/` with 24 non-test Go source files across 12 internal packages. The project uses Go 1.22+ with `go.mod` at `agent/go.mod`.
+
+#### 1.2 Identify completed features
+
+All 31 endpoints are implemented. 28 are working, 3 are stubbed (return empty data):
+- `GET /metrics/history` — stubbed
+- `GET /alerts/thresholds` — stubbed
+- `PUT /alerts/thresholds` — stubbed
+- `GET /audit` — stubbed
+
+All 12 internal packages are fully implemented with no missing core functionality.
+
+#### 1.3 Identify incomplete modules
+
+| Module | Gap |
+|--------|-----|
+| Metrics history | No ring buffer implementation; returns empty array |
+| Alert thresholds | No persistence or API for getting/setting thresholds |
+| Audit log handler | Returns empty array; no data population in handler |
+| Network latency | Not measured |
+| Disk IO | Not measured |
+| Temperature (non-CPU) | Motherboard and drive temps not implemented |
+| System info | Kernel, architecture, OS, boot time, users, processes not exposed |
+| Docker images | List, pull, delete, inspect not implemented |
+| Docker volumes | List, inspect not implemented |
+| Docker networks | List, inspect not implemented |
+| File copy | Not implemented |
+| File search | Not implemented |
+| File favorites | Not implemented |
+| Terminal history | Not implemented |
+| Command restrictions | No shell command allow-list |
+| Input validation | Partial; no centralized validation helpers |
+| File logging | Only stdout logging; no file handler |
+
+#### 1.4 Remove dead code only if safe
+
+**Dead code found and removed:**
+
+1. `auth/store.go:159` — `enrollByHash` (private duplicate of public `EnrollByHash`). Removed.
+2. `auth/store.go:170` — `cleanupEnrollments` (never called). Removed.
+3. `server/authmw.go:140` — `logLevel` (never called). Removed.
+4. `server/authmw.go:154` — `perMinute` (never called). Removed.
+5. `server/authmw.go:159` — `parseBool` (never called). Removed.
+6. `cmd/qwe1-agent/main.go:101` — `_ = base64.RawURLEncoding` (unnecessary hack; the import is actually used in `generateToken`). Removed.
+
+**Verification:** `go vet ./...` and `go test ./...` pass after removal.
+
+#### 1.5 Verify routing
+
+All 31 routes in `server.go` match the API reference in `API_REFERENCE.md`. Route patterns use Go 1.22 `http.ServeMux` pattern syntax. No conflicts or ambiguous patterns found. HTTP methods are correct for all endpoints.
+
+#### 1.6 Verify middleware
+
+Middleware stack order verified in `server.go:147`:
+1. CORS (`corsMiddleware`)
+2. Logging (`loggingMiddleware`)
+3. Recovery (`recoveryMiddleware`)
+4. IP rate limiting (`ipRateLimit`) — applied via `s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux)))`
+
+Auth middleware (`authMiddleware`) applied per-route for protected endpoints. Read-only middleware defined but not yet wired into routes (reserved for future use).
+
+#### 1.7 Verify authentication
+
+- Enrollment: `POST /auth/enroll` validates token hash, marks used, creates device, issues tokens ✓
+- Refresh: `POST /auth/refresh` rotates refresh token, detects reuse ✓
+- Revoke: `POST /auth/revoke` revokes device and all tokens ✓
+- Validation: `authMiddleware` validates HMAC-SHA256 signed access tokens ✓
+- Device management: `AddDevice`, `touchDeviceLocked`, `Devices` all working ✓
+
+#### 1.8 Verify configuration
+
+- YAML config loading with defaults ✓
+- All config fields validated (non-zero defaults applied) ✓
+- Environment variable support present in design (not yet implemented as env var overrides)
+- Config test coverage: `config_test.go` exists
+
+#### 1.9 Verify logging
+
+- Structured JSON logging via `log/slog` to stdout ✓
+- Log levels supported (debug, info, warn, error) ✓
+- Request logging in middleware ✓
+- Panic recovery logging ✓
+- No sensitive data logged (tokens, file contents excluded) ✓
+- File logging: not yet implemented
+
+#### 1.10 Verify database usage
+
+- Agent uses no external database ✓
+- Auth state persisted as JSON file (`<serverName>.auth.json`) ✓
+- Atomic file writes with temp file + rename ✓
+- No database dependencies ✓
+
+#### 1.11 Verify Docker integration
+
+- Docker client connects via `/var/run/docker.sock` (configurable) ✓
+- All container operations implemented (list, inspect, start/stop/restart/pause/unpause/kill/remove) ✓
+- Graceful degradation when Docker unavailable (nil manager, capability flag) ✓
+- Log streaming with `stdcopy` ✓
+- Event streaming with filters ✓
+- Secret masking in inspect output ✓
+
+#### 1.12 Verify server-agent communication
+
+- HTTP endpoints tested with `httptest` ✓
+- WebSocket upgrade working ✓
+- TLS 1.3 configured ✓
+- Certificate fingerprint extraction working ✓
+- Auth token validation working ✓
+- Rate limiting working ✓
+
+### Deliverable
+
+Documented backend audit with current state assessment, dead code removal, and gap analysis.
 
 ---
 

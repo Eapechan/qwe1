@@ -7,15 +7,11 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"log/slog"
-
 	"github.com/qwe1/qwe1/agent/internal/audit"
 	"github.com/qwe1/qwe1/agent/internal/auth"
-	"github.com/qwe1/qwe1/agent/internal/ratelimit"
 )
 
 type contextKey string
@@ -137,32 +133,3 @@ func bearerToken(r *http.Request) string {
 	return ""
 }
 
-func logLevel(cfg string) slog.Level {
-	switch strings.ToLower(cfg) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
-
-// perMinute builds a token-bucket limiter from a per-minute rate.
-func perMinute(perMin int, burst int) *ratelimit.Limiter {
-	return ratelimit.New(float64(perMin)/60.0, burst)
-}
-
-// parseBool parses a URL query bool with a default.
-func parseBool(q string, def bool) bool {
-	if q == "" {
-		return def
-	}
-	b, err := strconv.ParseBool(q)
-	if err != nil {
-		return def
-	}
-	return b
-}
