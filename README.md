@@ -78,7 +78,104 @@ Flutter App (phone) <-- HTTP/WebSocket --> Go Agent (your server) --> Docker API
 | Mobile app | Flutter, Riverpod, Material 3 | `app/` |
 | Server agent | Go, net/http, WebSocket | `agent/` |
 
-## What Works
+### Backend Architecture
+
+The agent is a single static Go binary that runs on each user's Linux server. It exposes a secure REST API over HTTPS (TLS 1.3) and a WebSocket endpoint for real-time streams.
+
+```
+agent/
+├── cmd/qwe1-agent/main.go    # Entrypoint: CLI flags, enroll, server bootstrap
+├── internal/
+│   ├── server/               # HTTP/WS server, router, middleware, handlers
+│   │   ├── server.go         # Server wiring, route registration, lifecycle
+│   │   ├── handlers.go       # All REST endpoint handlers (31 endpoints)
+│   │   ├── authmw.go         # Auth middleware, rate limiting, audit recording
+│   │   ├── middleware.go      # Logging, recovery, CORS middleware
+│   │   ├── respond.go        # JSON response helpers
+│   │   ├── types.go          # Shared API type aliases
+│   │   ├── ws.go             # WebSocket hub, client management
+│   │   └── server_test.go    # Integration tests
+│   ├── auth/                 # Token signing, validation, device store
+│   ├── config/               # YAML config loader with defaults
+│   ├── host/                 # Host metrics collector (CPU, RAM, disk, network, temp)
+│   ├── docker/               # Docker Engine API wrapper
+│   ├── terminal/             # PTY session manager
+│   ├── files/                # Allow-listed filesystem operations
+│   ├── alerts/               # Threshold evaluation engine
+│   ├── ratelimit/            # Token-bucket rate limiter
+│   ├── audit/                # Bounded ring-buffer audit log
+│   └── certs/                # Self-signed TLS certificate generation
+```
+
+### Backend Features
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Authentication (enroll/refresh/revoke) | Working | HMAC-SHA256 tokens, refresh rotation, device management |
+| Host metrics | Working | CPU, RAM, swap, disk, network, temperature, uptime, load |
+| Docker management | Working | List, inspect, start/stop/restart/pause/unpause/kill/remove, logs |
+| File management | Working | List, read, write, upload, mkdir, rename, delete |
+| Terminal (PTY) | Working | Create, kill, resize sessions |
+| Alerts engine | Working | Threshold evaluation with debounce and deduplication |
+| Real-time updates | Working | WebSocket hub with multiplexed channels |
+| Audit logging | Working | Bounded ring buffer of privileged actions |
+| Rate limiting | Working | Per-IP and per-token token-bucket limiter |
+| TLS | Working | TLS 1.3, self-signed ECDSA P-256 cert generation |
+
+### API Endpoints
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| `GET` | `/status` | No | Public reachability check |
+| `POST` | `/auth/enroll` | No | Exchange enrollment token for credentials |
+| `POST` | `/auth/refresh` | No | Rotate refresh token, issue new access token |
+| `POST` | `/auth/revoke` | Yes | Revoke current device |
+| `GET` | `/auth/me` | Yes | Device identity and capabilities |
+| `GET` | `/metrics/latest` | Yes | Latest host metrics snapshot |
+| `GET` | `/metrics/history` | Yes | Historical metrics (stubbed) |
+| `GET` | `/docker/containers` | Yes | List containers |
+| `POST` | `/docker/containers/{id}/start` | Yes | Start container |
+| `POST` | `/docker/containers/{id}/stop` | Yes | Stop container |
+| `POST` | `/docker/containers/{id}/restart` | Yes | Restart container |
+| `POST` | `/docker/containers/{id}/pause` | Yes | Pause container |
+| `POST` | `/docker/containers/{id}/unpause` | Yes | Resume container |
+| `POST` | `/docker/containers/{id}/kill` | Yes | Kill container |
+| `DELETE` | `/docker/containers/{id}` | Yes | Remove container |
+| `GET` | `/docker/containers/{id}/inspect` | Yes | Inspect container |
+| `GET` | `/docker/containers/{id}/logs` | Yes | Container logs |
+| `POST` | `/terminal` | Yes | Create PTY session |
+| `DELETE` | `/terminal/{id}` | Yes | Kill terminal session |
+| `GET` | `/fs/list` | Yes | List directory contents |
+| `GET` | `/fs/read` | Yes | Read file |
+| `POST` | `/fs/upload` | Yes | Upload file |
+| `POST` | `/fs/mkdir` | Yes | Create directory |
+| `POST` | `/fs/write` | Yes | Write file |
+| `PATCH` | `/fs/rename` | Yes | Rename/move file |
+| `DELETE` | `/fs` | Yes | Delete file/directory |
+| `GET` | `/alerts` | Yes | List alerts |
+| `PUT` | `/alerts/{id}/ack` | Yes | Acknowledge alert |
+| `GET` | `/alerts/thresholds` | Yes | Get alert thresholds (stubbed) |
+| `PUT` | `/alerts/thresholds` | Yes | Update alert thresholds (stubbed) |
+| `GET` | `/audit` | Yes | Audit log (stubbed) |
+| `GET` | `/ws` | No | WebSocket endpoint |
+
+See [API_REFERENCE.md](API_REFERENCE.md) for full request/response schemas.
+
+## Documentation
+
+| Doc | What it answers |
+|-----|-----------------|
+| [Getting Started](GETTING_STARTED.md) | How to run everything end-to-end |
+| [Backend Roadmap](BACKEND_ROADMAP.md) | Complete backend development plan and current state |
+| [Architecture](ARCHITECTURE.md) | Backend architecture, data flows, security model |
+| [Development Plan](DEVELOPMENT_PLAN.md) | Development workflow and phase-by-phase plan |
+| [API Reference](API_REFERENCE.md) | Complete endpoint reference with schemas |
+| [Changelog](CHANGELOG.md) | Version history and changes |
+| [Vision](docs/01-vision.md) | Why qwe1 exists |
+| [Architecture](docs/09-architecture.md) | System-level architecture |
+| [API Design](docs/11-api-design.md) | The wire contract |
+| [Security](docs/14-security-architecture.md) | How we defend it |
+| [Roadmap](docs/17-roadmap.md) | What's next |
 
 | Feature | Status |
 |---------|--------|
