@@ -136,6 +136,10 @@ func bearerToken(r *http.Request) string {
 	if len(h) > 7 && strings.EqualFold(h[:7], "Bearer ") {
 		return h[7:]
 	}
+	// Fallback: accept token from ?token= query parameter (used by WebSocket).
+	if t := r.URL.Query().Get("token"); t != "" {
+		return t
+	}
 	return ""
 }
 

@@ -300,21 +300,6 @@ class ServerRepositoryImpl implements ServerRepository {
         return null;
       }
 
-      // Check if token is still valid before attempting refresh.
-      final currentAccess = await secureStorage.getAccessToken(serverId);
-      if (currentAccess != null) {
-        try {
-          final server = await getServer(serverId);
-          final checkClient = ApiClient(baseUrl: server.agentUrl);
-          final statusResp = await checkClient.get('/status');
-          // If status succeeds, the current token is still valid — no refresh needed.
-          _refreshLock!.complete(currentAccess);
-          return currentAccess;
-        } catch (_) {
-          // Status failed — current token is likely expired, proceed with refresh.
-        }
-      }
-
       final server = await getServer(serverId);
       final client = ApiClient(baseUrl: server.agentUrl);
       final response = await client.post('/auth/refresh', data: {

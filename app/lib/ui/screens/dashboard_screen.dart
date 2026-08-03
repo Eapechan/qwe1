@@ -47,6 +47,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               await ref.read(serverListProvider.notifier).loadServers();
+              await ref.read(serverListProvider.notifier).refreshStatuses();
             },
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),

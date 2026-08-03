@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/domain/entities/server.dart';
 import 'package:qwe1/domain/entities/metrics.dart';
 import 'package:qwe1/domain/repositories/server_repository.dart';
+import 'package:qwe1/data/sources/remote/api_client.dart';
 
 // Server list provider
 final serverListProvider = StateNotifierProvider<ServerListNotifier, AsyncValue<List<Server>>>((ref) {
@@ -21,8 +22,50 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
       final repository = ref.read(serverRepositoryProvider);
       final servers = await repository.getServers();
       state = AsyncValue.data(servers);
+      // Fire-and-forget status check; results update state directly.
+      refreshStatuses();
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+    }
+  }
+
+  /// Pings /status for every server and persists the result so the
+  /// dashboard shows the correct green/grey indicator.
+  Future<void> refreshStatuses() async {
+    final currentServers = state.valueOrNull;
+    if (currentServers == null || currentServers.isEmpty) return;
+
+    final repository = ref.read(serverRepositoryProvider);
+    final futures = <Future<Server>>[];
+    for (final server in currentServers) {
+      futures.add(_pingStatus(server));
+    }
+    final updated = await Future.wait(futures);
+
+    bool changed = false;
+    final newServers = <Server>[];
+    for (final server in updated) {
+      final original = currentServers.firstWhere((s) => s.id == server.id);
+      if (server.status != original.status) {
+        changed = true;
+        // Persist status change. Call repository directly (not the notifier's
+        // updateServer) to avoid triggering loadServers recursively.
+        repository.updateServer(server);
+      }
+      newServers.add(server);
+    }
+    if (changed) {
+      state = AsyncValue.data(newServers);
+    }
+  }
+
+  Future<Server> _pingStatus(Server server) async {
+    try {
+      final client = ApiClient(baseUrl: server.agentUrl);
+      await client.get('/status');
+      return server.copyWith(status: 'online');
+    } catch (_) {
+      return server.copyWith(status: 'offline');
     }
   }
 

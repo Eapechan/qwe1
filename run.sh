@@ -84,7 +84,7 @@ auth:
   refreshTokenTTL: 2592000
   enrollmentTTL: 3600
 docker:
-  enabled: false
+  enabled: true
   socketPath: /var/run/docker.sock
 host:
   metricsInterval: 5

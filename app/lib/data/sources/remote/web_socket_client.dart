@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:qwe1/core/error/error_mapper.dart';
 
 class WebSocketClient {
@@ -43,7 +44,10 @@ class WebSocketClient {
     final url = '$wsUrl/ws?channels=$channelParams&token=$token';
 
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(url));
+      _channel = IOWebSocketChannel.connect(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       _channel!.stream.listen(
         _onMessage,

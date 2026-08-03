@@ -14,6 +14,7 @@ import (
 	"github.com/qwe1/qwe1/agent/internal/auth"
 	"github.com/qwe1/qwe1/agent/internal/certs"
 	"github.com/qwe1/qwe1/agent/internal/docker"
+	"github.com/qwe1/qwe1/agent/internal/host"
 )
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -219,9 +220,18 @@ func generateID() string {
 	return hex.EncodeToString(b)
 }
 
+// metricEnvelope wraps the raw host.Metrics in the {timestamp, host:{...}}
+// envelope that the Flutter app's MetricsDto.fromJson expects.
+func metricEnvelope(m *host.Metrics) map[string]interface{} {
+	return map[string]interface{}{
+		"timestamp": m.Timestamp,
+		"host":      m,
+	}
+}
+
 func (s *Server) handleMetricsLatest(w http.ResponseWriter, r *http.Request) {
 	metrics := s.host.Latest()
-	s.respondJSON(w, http.StatusOK, metrics)
+	s.respondJSON(w, http.StatusOK, metricEnvelope(metrics))
 }
 
 func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
@@ -785,7 +795,7 @@ func (s *Server) broadcastMetrics(ctx context.Context) {
 			return
 		case <-ticker.C:
 			metrics := s.host.Latest()
-			s.wsHub.Broadcast("metrics", metrics)
+			s.wsHub.Broadcast("metrics", metricEnvelope(metrics))
 		}
 	}
 }
