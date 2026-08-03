@@ -88,18 +88,22 @@ you are connecting to it.
 
 ## Correct Pairing Procedure
 
-Run `./run.sh` in one terminal — it builds the agent, generates a token + QR
-code, and starts the agent in the background:
+Run `./run.sh` — it builds the agent, generates a token + QR code (with the
+correct `http://` or `https://` scheme based on your TLS config), and starts
+the agent:
 
 ```bash
 ./run.sh
 ```
 
-To regenerate the token later:
+To regenerate the token (stops agent → generates fresh token+QR → restarts
+agent):
 
 ```bash
 ./run.sh token
 ```
+
+If a stray agent is holding the port, `run.sh` auto-kills it and restarts.
 
 Then in the app tap **Scan QR Code** and scan the terminal/QR image, or enter manually:
 - Server URL: `http://<server-lan-ip>:9443`
@@ -133,7 +137,9 @@ LAN URL and Tailscale URL, so one scan works at home and away. Set
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| App "network exception" | `https://` used, or wrong IP, or port closed | Use `http://<lan-ip>:9443`, open port 9443 |
+| App "unexpected error occurred: null" | QR URL uses `https://` but agent is plain HTTP | `./run.sh token` to regenerate QR with correct `http://` scheme |
+| App "network exception" | wrong IP, or port closed | Use `http://<lan-ip>:9443`, open port 9443 |
 | `curl https://.../status` fails | Agent is HTTP-only in test mode | Use `http://`, not `https://` |
 | Phone can't reach server | Wrong IP (localhost) or firewall | Use server LAN IP, `sudo ufw allow 9443/tcp` |
 | Port refused | Agent on different port or not running | Check `ss -tlnp`, restart with matching `--port` |
+| Agent failed to start (port busy) | Stray agent holds port | `./run.sh` auto-kills strays; or `pkill -f qwe1-agent` |

@@ -348,6 +348,33 @@ export JAVA_HOME=~/java/current
 
 This happens when the agent runs with TLS and the app doesn't trust the self-signed cert. For testing, use plain HTTP (empty `tlsCertPath`/`tlsKeyPath` in config).
 
+### "unexpected error occurred: null" in the app
+
+This means the QR URL uses `https://` but the agent is running plain HTTP (no
+TLS certs configured). Delete the server in the app, then on the server run:
+
+```bash
+./run.sh token
+```
+
+The new QR will advertise `http://…` (matching your plain-HTTP config). Scan
+it again. If you need HTTPS, set up TLS certs first — see the production steps
+above.
+
+### "Agent failed to start"
+
+`run.sh` auto-detects and kills stray agents that hold the port. If it still
+fails, check the log:
+
+```bash
+tail -20 agent.log
+```
+
+Common causes:
+- **"address already in use"** — run `pkill -f qwe1-agent` then `./run.sh` again.
+- **"no such file or directory"** — Go not installed or binary not built. Run
+  `./run.sh --force`.
+
 ---
 
 ## Next Steps

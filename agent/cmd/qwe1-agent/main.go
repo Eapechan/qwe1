@@ -93,11 +93,11 @@ func runEnroll(cfg *config.Config, hours int) {
 
 	lanURL := cfg.AdvertiseURL
 	if lanURL == "" {
-		lanURL = detectLanIP()
+		lanURL = detectLanIP(cfg)
 	}
 	tailscaleURL := cfg.AdvertiseTailscaleURL
 	if tailscaleURL == "" {
-		tailscaleURL = detectTailscaleIP()
+		tailscaleURL = detectTailscaleIP(cfg)
 	}
 
 	qrPayload := fmt.Sprintf("qwe1://enroll?agentUrl=%s&tsUrl=%s&name=%s&token=%s&fp=%s",
@@ -137,7 +137,13 @@ func runEnroll(cfg *config.Config, hours int) {
 	fmt.Println()
 }
 
-func detectLanIP() string {
+func detectLanIP(cfg *config.Config) string {
+	scheme := "http"
+	if cfg.TLSCertPath != "" {
+		scheme = "https"
+	}
+	port := fmt.Sprintf(":%d", cfg.ListenPort)
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return ""
@@ -165,14 +171,20 @@ func detectLanIP() string {
 				continue
 			}
 			if ip.To4() != nil {
-				return "https://" + ip.String() + ":9443"
+				return scheme + "://" + ip.String() + port
 			}
 		}
 	}
 	return ""
 }
 
-func detectTailscaleIP() string {
+func detectTailscaleIP(cfg *config.Config) string {
+	scheme := "http"
+	if cfg.TLSCertPath != "" {
+		scheme = "https"
+	}
+	port := fmt.Sprintf(":%d", cfg.ListenPort)
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return ""
@@ -200,7 +212,7 @@ func detectTailscaleIP() string {
 				continue
 			}
 			if ip.To4() != nil {
-				return "https://" + ip.String() + ":9443"
+				return scheme + "://" + ip.String() + port
 			}
 		}
 	}
@@ -225,7 +237,7 @@ func detectTailscaleIP() string {
 				continue
 			}
 			if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
-				return "https://" + ip.String() + ":9443"
+				return scheme + "://" + ip.String() + port
 			}
 		}
 	}
