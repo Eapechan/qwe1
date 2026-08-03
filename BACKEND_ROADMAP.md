@@ -206,6 +206,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 3: Authentication System
 
+**Status:** Complete
+
 #### Enrollment
 
 - [x] Token generation (`generateToken` in `main.go`)
@@ -232,6 +234,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 ---
 
 ### Phase 4: Server Communication
+
+**Status:** Complete
 
 #### Heartbeat
 
@@ -265,6 +269,8 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 ### Phase 5: System Monitoring
 
+**Status:** IN PROGRESS
+
 #### CPU
 
 - [x] Usage (`cpu.Percent`)
@@ -275,40 +281,40 @@ Documented backend audit with current state assessment, dead code removal, and g
 
 - [x] RAM (`mem.VirtualMemory`)
 - [x] Swap (`mem.SwapMemory`)
-- [x] Cache (not yet exposed separately)
-- [x] Buffers (not yet exposed separately)
+- [ ] Cache (not yet exposed separately)
+- [ ] Buffers (not yet exposed separately)
 
 #### Disk
 
 - [x] Partitions (`disk.Partitions`)
 - [x] Usage (`disk.Usage`)
-- [x] IO (not yet implemented)
+- [ ] IO (not yet implemented)
 - [x] Filesystem (mount points exposed)
 
 #### Network
 
 - [x] Upload (`net.IOCounters` TX)
 - [x] Download (`net.IOCounters` RX)
-- [x] Interfaces (single interface currently)
+- [ ] Interfaces (single interface currently)
 - [x] Bandwidth (rate-diff'd)
-- [x] Latency (not yet implemented)
+- [ ] Latency (not yet implemented)
 
 #### Temperature
 
 - [x] CPU (`/sys/class/thermal` on Linux)
-- [x] Motherboard (not yet)
-- [x] Drives (not yet)
+- [ ] Motherboard (not yet)
+- [ ] Drives (not yet)
 
 #### System
 
 - [x] Hostname (`host.Info`)
-- [x] Kernel (not yet exposed)
-- [x] Architecture (not yet exposed)
-- [x] OS (not yet exposed)
+- [ ] Kernel (not yet exposed)
+- [ ] Architecture (not yet exposed)
+- [ ] OS (not yet exposed)
 - [x] Uptime (`host.Info.Uptime`)
-- [x] Boot time (not yet)
-- [x] Users (not yet)
-- [x] Processes (not yet)
+- [ ] Boot time (not yet)
+- [ ] Users (not yet)
+- [ ] Processes (not yet)
 
 **Deliverable:** Complete system monitoring.
 
