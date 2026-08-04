@@ -45,6 +45,9 @@ func New(cfg *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to create auth store: %w", err)
 	}
 
+	// The signer secret is persisted to disk on the first enroll or refresh
+	// request, ensuring it survives process restarts after tokens are issued.
+
 	// Use the persisted signer secret so tokens survive process restarts.
 	signer, err := auth.NewSigner(authStore.SignerSecret())
 	if err != nil {
@@ -171,7 +174,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /debug/pprof/", s.authMiddleware(s.handlePprof))
 	mux.HandleFunc("GET /debug/pprof/profile", s.authMiddleware(s.handlePprofProfile))
 
-	return s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(mux)))
+	return s.corsMiddleware(s.loggingMiddleware(s.recoveryMiddleware(s.ipRateLimit(s.readOnlyMiddleware(mux)))))
 }
 
 func (s *Server) Run(ctx context.Context) error {

@@ -121,44 +121,35 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	accessTokenTTL := time.Duration(s.cfg.Auth.AccessTokenTTL) * time.Second
 	refreshTokenTTL := time.Duration(s.cfg.Auth.RefreshTokenTTL) * time.Second
-	deviceID := "" // determined inside RotateRefresh
 
-	// Generate the new tokens first (may fail without holding locks).
-	accessToken, err := s.signer.GenerateAccessToken("placeholder", accessTokenTTL)
-	if err != nil {
-		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate access token")
-		return
-	}
+	// Generate the new refresh token early (may fail without holding locks).
 	newRefreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate refresh token")
 		return
 	}
 
-	// Get the deviceID from the existing record (read-only lookup).
-	refresh, ok := s.auth.RefreshByHash(hash)
+	// Atomic rotate: lookup + validate + mark old used + add new record +
+	// touch device — all under a single lock. Returns deviceID directly.
+	now := time.Now().UTC()
+	deviceID, ok := s.auth.RotateRefreshAtomic(hash, auth.HashToken(newRefreshToken), now.Add(refreshTokenTTL))
 	if !ok {
-		s.respondError(w, http.StatusUnauthorized, "INVALID_TOKEN", "Invalid refresh token")
+		// Reuse or expired — revoke the device to be safe.
+		refresh, lookupOK := s.auth.RefreshByHash(hash)
+		if lookupOK {
+			s.auth.RevokeDevice(refresh.DeviceID)
+		}
+		_ = s.auth.Persist()
+		s.respondError(w, http.StatusUnauthorized, "TOKEN_REUSE", "Refresh token reuse detected or expired, device revoked")
 		return
 	}
-	deviceID = refresh.DeviceID
 
-	// Regenerate the access token with the real deviceID.
-	accessToken, err = s.signer.GenerateAccessToken(deviceID, accessTokenTTL)
+	accessToken, err := s.signer.GenerateAccessToken(deviceID, accessTokenTTL)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate access token")
 		return
 	}
 
-	// Atomic rotate: mark old used, add new record, touch device — single lock.
-	now := time.Now().UTC()
-	if !s.auth.RotateRefresh(hash, auth.HashToken(newRefreshToken), deviceID, now.Add(refreshTokenTTL)) {
-		// Reuse or expired — revoke the device to be safe.
-		s.auth.RevokeDevice(deviceID)
-		_ = s.auth.Persist()
-		s.respondError(w, http.StatusUnauthorized, "TOKEN_REUSE", "Refresh token reuse detected or expired, device revoked")
-		return
-	}
 	if err := s.auth.Persist(); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "PERSIST_ERROR", "Failed to save auth state")
 		return

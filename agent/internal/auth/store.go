@@ -55,9 +55,11 @@ type fileState struct {
 // Store is a persisted, mutex-guarded store of token hashes and devices.
 // Persisted as JSON (never containing plaintext tokens).
 type Store struct {
-	mu   sync.RWMutex
-	path string
-	fs   fileState
+	mu              sync.RWMutex
+	path            string
+	fs              fileState
+	fileExisted     bool // true if the store file existed on disk when loaded
+	secretGenerated bool // true if signer secret was auto-generated (needs persist)
 }
 
 // NewStore loads the store from path, creating an empty one if absent.
@@ -67,6 +69,7 @@ func NewStore(path string) (*Store, error) {
 	s := &Store{path: path}
 	b, err := os.ReadFile(path)
 	if err == nil {
+		s.fileExisted = true
 		if err := json.Unmarshal(b, &s.fs); err != nil {
 			return nil, err
 		}
@@ -89,10 +92,25 @@ func NewStore(path string) (*Store, error) {
 			return nil, err
 		}
 		s.fs.SignerSecret = hex.EncodeToString(secret)
-		// Don't persist here — the caller (runEnroll or server) will
-		// persist after its own mutations, avoiding Reload() overwrites.
+		s.secretGenerated = true
 	}
 	return s, nil
+}
+
+// NeedsPersist returns true if the signer secret was auto-generated and needs
+// to be persisted to disk so it survives process restarts. Only returns true
+// when the store file did not previously exist (first run).
+func (s *Store) NeedsPersist() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.secretGenerated && !s.fileExisted
+}
+
+// MarkPersisted clears the needs-persist flag after a successful Persist().
+func (s *Store) MarkPersisted() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.secretGenerated = false
 }
 
 // Reload re-reads the state file, picking up changes made by another process
@@ -189,6 +207,35 @@ func (s *Store) RotateRefresh(oldHash, newHash, deviceID string, expiresAt time.
 		}
 	}
 	return false
+}
+
+// RotateRefreshAtomic looks up the old refresh token by hash, validates it,
+// marks it used, appends a new record, and touches the device — all under a
+// single lock. Returns (deviceID, true) on success; ("", false) if the token
+// is invalid, used, revoked, or expired.
+func (s *Store) RotateRefreshAtomic(oldHash, newHash string, expiresAt time.Time) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.fs.Refresh {
+		if s.fs.Refresh[i].Hash == oldHash {
+			if s.fs.Refresh[i].Used || s.fs.Refresh[i].Revoked {
+				return "", false
+			}
+			if time.Now().After(s.fs.Refresh[i].ExpiresAt) {
+				return "", false
+			}
+			deviceID := s.fs.Refresh[i].DeviceID
+			s.fs.Refresh[i].Used = true
+			s.fs.Refresh = append(s.fs.Refresh, refreshRecord{
+				Hash:      newHash,
+				DeviceID:  deviceID,
+				ExpiresAt: expiresAt,
+			})
+			s.touchDeviceLocked(deviceID)
+			return deviceID, true
+		}
+	}
+	return "", false
 }
 
 func (s *Store) AddEnrollment(hash string, expiresAt time.Time) {

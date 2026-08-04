@@ -338,7 +338,10 @@ class ServerRepositoryImpl implements ServerRepository {
     token ??= await secureStorage.getAccessToken(serverId);
     if (token == null) throw Exception('Not authenticated');
 
-    final wsClient = WebSocketClient(baseUrl: server.agentUrl);
+    final wsClient = WebSocketClient(
+      baseUrl: server.agentUrl,
+      onTokenRefresh: () => _refreshAccessToken(serverId),
+    );
     await wsClient.connect(token: token, channels: channels);
     _wsClients[serverId] = wsClient;
   }
