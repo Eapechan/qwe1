@@ -7,7 +7,7 @@
 # For production HTTPS, set tlsCertPath/tlsKeyPath to your certs and use
 # https://<server-ip>:9443 in the app.
 
-serverName: my-server
+serverName: qwe1
 listenHost: 0.0.0.0
 listenPort: 9443
 tlsCertPath: ""
