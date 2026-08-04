@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
@@ -52,7 +53,9 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 
 	// Reload the auth store from disk to pick up enrollment tokens
 	// added by `qwe1-agent --enroll` while the server was running.
-	_ = s.auth.Reload()
+	if err := s.auth.Reload(); err != nil {
+		slog.Warn("enroll: failed to reload auth store", "error", err)
+	}
 
 	hash := auth.HashToken(req.EnrollmentToken)
 	enroll, ok := s.auth.EnrollByHash(hash)
@@ -64,6 +67,9 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	deviceID := generateID()
 	now := time.Now().UTC()
 	s.auth.AddDevice(deviceID, req.Device.Name, now)
+
+	// Mark the enrollment token as used so it cannot be reused.
+	s.auth.MarkEnrollmentUsed(hash)
 
 	accessTokenTTL := time.Duration(s.cfg.Auth.AccessTokenTTL) * time.Second
 	refreshTokenTTL := time.Duration(s.cfg.Auth.RefreshTokenTTL) * time.Second
@@ -90,6 +96,8 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	cm := certs.NewCertManager(s.cfg.TLSCertPath, s.cfg.TLSKeyPath)
 	if fp, err := cm.GetFingerprint(); err == nil {
 		fingerprint = fp
+	} else {
+		slog.Warn("enroll: failed to get TLS fingerprint", "error", err)
 	}
 
 	s.respondJSON(w, http.StatusCreated, map[string]interface{}{

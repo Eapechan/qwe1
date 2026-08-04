@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/domain/entities/server.dart';
 import 'package:qwe1/domain/entities/metrics.dart';
@@ -81,7 +82,8 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
       final client = ApiClient(baseUrl: server.agentUrl);
       await client.get('/status');
       return server.copyWith(status: 'online');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[status] ping failed for ${server.name} (${server.agentUrl}): $e');
       return server.copyWith(status: 'offline');
     }
   }

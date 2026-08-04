@@ -104,8 +104,9 @@ EOF
 }
 
 needs_build() {
-  [ ! -f "$AGENT_BIN" ] || [ agent/cmd/qwe1-agent/main.go -nt "$AGENT_BIN" ] || \
-    find agent -name '*.go' -newer "$AGENT_BIN" -print -quit | grep -q .
+  [ ! -f "$AGENT_BIN" ] && return 0
+  # Always rebuild if Go source files are newer than the binary.
+  find agent -name '*.go' -newer "$AGENT_BIN" -print -quit | grep -q .
 }
 
 build_agent() {
