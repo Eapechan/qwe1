@@ -85,6 +85,7 @@ EOF
 build_agent() {
     check_go
     INFO "Building agent for Linux (cross-compile)..."
+    rm -f "$AGENT_BIN"
     cd agent
     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o ../qwe1-agent ./cmd/qwe1-agent
     cd ..
