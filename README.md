@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="releases/"><img alt="Release" src="https://img.shields.io/github/v/release/qwe1/qwe1"></a>
+  <a href="https://github.com/Eapechan/qwe1/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Eapechan/qwe1"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
 </p>
 
@@ -36,7 +36,7 @@
 Clone and run in one command:
 
 ```bash
-git clone https://github.com/qwe1/qwe1.git
+git clone https://github.com/Eapechan/qwe1.git
 cd qwe1
 ./run.sh
 ```
@@ -179,7 +179,7 @@ agent/
 | `GET` | `/debug/pprof/profile` | Yes | CPU profile download |
 | `GET` | `/ws` | No | WebSocket endpoint |
 
-See the [API reference](API_REFERENCE.md) for full request/response schemas.
+See the [API reference](https://github.com/Eapechan/qwe1/blob/v1/API_REFERENCE.md) on the `v1` branch for full request/response schemas.
 
 ## Documentation
 
@@ -195,7 +195,7 @@ See the [API reference](API_REFERENCE.md) for full request/response schemas.
 We welcome contributors of every skill level. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 - Discussions for RFCs and questions
-- [Bug reports](../../issues/new)
+- [Bug reports](https://github.com/Eapechan/qwe1/issues/new)
 - Docs fixes are always appreciated
 
 ## Security

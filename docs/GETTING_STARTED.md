@@ -61,7 +61,7 @@ go version
 ### Step 1: Clone and run
 
 ```bash
-git clone https://github.com/qwe1/qwe1.git
+git clone https://github.com/Eapechan/qwe1.git
 cd qwe1
 ./run.sh
 ```
