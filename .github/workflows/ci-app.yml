@@ -2,10 +2,10 @@ name: App CI
 
 on:
   pull_request:
-    paths: ["app/**", "api/**", ".github/workflows/ci-app.yml"]
+    paths: ["app/**", ".github/workflows/ci-app.yml"]
   push:
     branches: [main]
-    paths: ["app/**", "api/**", ".github/workflows/ci-app.yml"]
+    paths: ["app/**", ".github/workflows/ci-app.yml"]
 
 concurrency:
   group: ci-app-${{ github.ref }}

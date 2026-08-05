@@ -17,8 +17,8 @@ import (
 
 	"github.com/qwe1/qwe1/agent/internal/auth"
 	"github.com/qwe1/qwe1/agent/internal/certs"
-	"github.com/qwe1/qwe1/agent/internal/config"
 	"github.com/qwe1/qwe1/agent/internal/server"
+	"github.com/qwe1/qwe1/agent/config"
 	qrcode "github.com/skip2/go-qrcode"
 )
 

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/qwe1/qwe1/agent/internal/auth"
-	"github.com/qwe1/qwe1/agent/internal/config"
+	"github.com/qwe1/qwe1/agent/config"
 )
 
 type tokenResponse struct {
