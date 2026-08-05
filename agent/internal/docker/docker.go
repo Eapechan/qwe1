@@ -94,10 +94,14 @@ func New(socketPath string) (*Manager, error) {
 
 	opts := []client.Opt{client.WithAPIVersionNegotiation()}
 	if socketPath != "" {
-		opts = append(opts, client.WithHost(socketPath))
+		opts = append(opts, client.WithHost(resolved))
 	} else {
 		opts = append(opts, client.FromEnv)
 	}
+	slog.Info("docker: constructing client",
+		"socketPath", socketPath,
+		"resolvedSocket", resolved,
+	)
 	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		slog.Error("docker: failed to construct client",

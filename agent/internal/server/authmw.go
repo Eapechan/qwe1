@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -37,11 +35,31 @@ func withValue(ctx context.Context, key contextKey, v any) context.Context {
 	return context.WithValue(ctx, key, v)
 }
 
-// randID returns a short random hex string for request/audit IDs.
-func randID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+// wsAuthMiddleware validates the Bearer access token for WebSocket connections
+// without consuming a rate-limit token, since WebSocket connections are long-lived
+// and reconnects should not be penalized.
+func (s *Server) wsAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		raw := bearerToken(r)
+		if raw == "" {
+			writeErr(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "missing bearer token", nil)
+			return
+		}
+		deviceID, err := s.signer.ValidateAccessToken(raw)
+		if err != nil {
+			code := "INVALID_TOKEN"
+			if err == auth.ErrTokenExpired {
+				code = "TOKEN_EXPIRED"
+			}
+			writeErr(w, r, http.StatusUnauthorized, code, "authentication failed", nil)
+			return
+		}
+		if s.auth.IsDeviceRevoked(deviceID) {
+			writeErr(w, r, http.StatusUnauthorized, "DEVICE_REVOKED", "device has been revoked", nil)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(withValue(r.Context(), ctxDeviceID, deviceID)))
+	}
 }
 
 func clientIP(r *http.Request) string {

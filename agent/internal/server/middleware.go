@@ -1,9 +1,12 @@
 package server
 
 import (
-	"log/slog"
+	"bufio"
+	"net"
 	"net/http"
 	"time"
+
+	"log/slog"
 )
 
 func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
@@ -58,4 +61,14 @@ type statusResponseWriter struct {
 func (w *statusResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.ResponseWriter.(http.Hijacker).Hijack()
+}
+
+func (w *statusResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }

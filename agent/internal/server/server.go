@@ -212,8 +212,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /alerts/thresholds", s.authMiddleware(s.handleAlertThresholds))
 	mux.HandleFunc("PUT /alerts/thresholds", s.authMiddleware(s.handleAlertThresholdsUpdate))
 
-	// WebSocket
-	mux.HandleFunc("GET /ws", s.authMiddleware(s.handleWebSocket))
+	// WebSocket (exempt from token rate limiting to prevent reconnect loops)
+	mux.HandleFunc("GET /ws", s.wsAuthMiddleware(s.handleWebSocket))
 
 	// Audit
 	mux.HandleFunc("GET /audit", s.authMiddleware(s.handleAudit))
