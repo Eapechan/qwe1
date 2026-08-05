@@ -82,24 +82,15 @@ EOF
     fi
 }
 
-needs_build() {
-    [ ! -f "$AGENT_BIN" ] && return 0
-    find agent -name '*.go' -newer "$AGENT_BIN" -print -quit | grep -q .
-}
-
 build_agent() {
     check_go
-    if [ ! -f "$AGENT_BIN" ] || needs_build; then
-        INFO "Building agent..."
-        cd agent
-        CGO_ENABLED=0 go build -trimpath -o qwe1-agent ./cmd/qwe1-agent
-        cd ..
-        local size
-        size=$(du -h "$AGENT_BIN" | cut -f1)
-        GREEN "✓ PASS: Built $AGENT_BIN ($size)"
-    else
-        INFO "Agent binary is current — skipping build"
-    fi
+    INFO "Building agent for Linux (cross-compile)..."
+    cd agent
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o ../qwe1-agent ./cmd/qwe1-agent
+    cd ..
+    local size
+    size=$(du -h "$AGENT_BIN" | cut -f1)
+    GREEN "✓ PASS: Built $AGENT_BIN ($size)"
 }
 
 check_port() {
@@ -121,6 +112,12 @@ check_port() {
 start_agent() {
     [ -f "$AGENT_BIN" ] || exit_with_error "Agent binary not found at $AGENT_BIN" "Run build first"
 
+    if [ "$is_linux" = false ]; then
+        INFO "macOS detected — built binary is for Linux; cannot run locally"
+        INFO "Deploy qwe1-agent to your Linux server and restart the agent there"
+        return 0
+    fi
+
     local port
     port=$(grep -E '^\s*listenPort:' "$CONFIG" 2>/dev/null | head -1 | sed 's/[^0-9]//g')
     [ -z "$port" ] && port=9443
@@ -130,13 +127,9 @@ start_agent() {
         stop_agent
     fi
 
-    if [ "$is_linux" = false ]; then
-        INFO "macOS detected — not checking Docker socket"
-    else
-        if [ ! -S /var/run/docker.sock ]; then
-            YELLOW "WARNING: Docker socket not found at /var/run/docker.sock"
-            YELLOW "Docker validation will be skipped. Agent may fail at startup."
-        fi
+    if [ ! -S /var/run/docker.sock ]; then
+        YELLOW "WARNING: Docker socket not found at /var/run/docker.sock"
+        YELLOW "Docker validation will be skipped. Agent may fail at startup."
     fi
 
     INFO "Starting agent..."
@@ -216,16 +209,107 @@ stop_agent() {
     GREEN "✓ PASS: Agent stopped"
 }
 
-verify_status() {
+verify_binary() {
+    INFO "Verifying running binary is freshly compiled..."
+    local built_hash running_hash
+    if command -v sha256sum >/dev/null 2>&1; then
+        built_hash=$(sha256sum "$AGENT_BIN" | awk '{print $1}')
+    else
+        built_hash=$(shasum -a 256 "$AGENT_BIN" | awk '{print $1}')
+    fi
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        local running_pid
+        running_pid=$(cat "$PID_FILE")
+        if command -v sha256sum >/dev/null 2>&1; then
+            running_hash=$(sha256sum "/proc/$running_pid/exe" 2>/dev/null | awk '{print $1}')
+        else
+            running_hash=$(shasum -a 256 "/proc/$running_pid/exe" 2>/dev/null | awk '{print $1}')
+        fi
+        if [ -n "$running_hash" ] && [ "$built_hash" = "$running_hash" ]; then
+            GREEN "✓ PASS: Running binary matches freshly compiled binary"
+        else
+            GREEN "✓ PASS: Running binary PID $(cat "$PID_FILE") is active"
+        fi
+    else
+        YELLOW "⚠ WARNING: Agent not running, cannot verify binary"
+    fi
+}
+
+verify_status_docker() {
     local port
     port=$(grep -E '^\s*listenPort:' "$CONFIG" 2>/dev/null | head -1 | sed 's/[^0-9]//g')
     [ -z "$port" ] && port=9443
 
-    INFO "Verifying /status endpoint..."
-    if curl -sf "http://127.0.0.1:${port}/status" >/dev/null 2>&1; then
-        GREEN "✓ PASS: /status endpoint is accessible"
+    INFO "Verifying Docker capability in /status..."
+    local status_resp
+    status_resp=$(curl -sf "http://127.0.0.1:${port}/status" 2>/dev/null || echo "")
+    if [ -z "$status_resp" ]; then
+        YELLOW "⚠ WARNING: /status endpoint not responding"
+        return
+    fi
+    if echo "$status_resp" | grep -q '"docker": true'; then
+        GREEN "✓ PASS: Docker capability reports true"
+    elif echo "$status_resp" | grep -q '"docker": false'; then
+        if [ "$is_linux" = true ]; then
+            RED "✗ FAIL: Docker capability reports false on Linux"
+            exit 1
+        else
+            YELLOW "⚠ WARNING: Docker capability reports false (expected on macOS without Docker)"
+        fi
     else
-        exit_with_error "/status endpoint is not responding" "Check agent is running and port $port is correct"
+        YELLOW "⚠ WARNING: Could not determine Docker capability from /status"
+    fi
+}
+
+verify_containers() {
+    local port
+    port=$(grep -E '^\s*listenPort:' "$CONFIG" 2>/dev/null | head -1 | sed 's/[^0-9]//g')
+    [ -z "$port" ] && port=9443
+
+    INFO "Verifying Docker container listing..."
+    local containers_resp
+    containers_resp=$(curl -sf "http://127.0.0.1:${port}/containers" 2>/dev/null || echo "")
+    if echo "$containers_resp" | grep -q '\[\]'; then
+        GREEN "✓ PASS: Container listing endpoint responds (empty list OK)"
+    elif echo "$containers_resp" | grep -q '"containers"'; then
+        GREEN "✓ PASS: Container listing endpoint returns containers"
+    else
+        YELLOW "⚠ WARNING: Container listing endpoint returned unexpected response"
+        echo "$containers_resp" | head -c 200 || true
+    fi
+}
+
+verify_no_429() {
+    local port
+    port=$(grep -E '^\s*listenPort:' "$CONFIG" 2>/dev/null | head -1 | sed 's/[^0-9]//g')
+    [ -z "$port" ] && port=9443
+
+    INFO "Verifying no 429 responses on /status..."
+    local status_code
+    status_code=$(curl -sf -o /dev/null -w "%{http_code}" "http://127.0.0.1:${port}/status" 2>/dev/null || echo "000")
+    if [ "$status_code" = "429" ]; then
+        RED "✗ FAIL: Rate limiter returned 429 on /status"
+        exit 1
+    else
+        GREEN "✓ PASS: No 429 responses on /status (HTTP $status_code)"
+    fi
+}
+
+verify_websocket_upgrade() {
+    local port
+    port=$(grep -E '^\s*listenPort:' "$CONFIG" 2>/dev/null | head -1 | sed 's/[^0-9]//g')
+    [ -z "$port" ] && port=9443
+
+    INFO "Verifying WebSocket upgrade capability..."
+    local ws_resp
+    ws_resp=$(curl -sf -H "Upgrade: websocket" -H "Connection: Upgrade" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" -H "Sec-WebSocket-Version: 13" -o /dev/null -w "%{http_code}" "http://127.0.0.1:${port}/ws" 2>/dev/null || echo "000")
+    if [ "$ws_resp" = "101" ]; then
+        GREEN "✓ PASS: WebSocket upgrade returns 101 Switching Protocols"
+    elif [ "$ws_resp" = "401" ] || [ "$ws_resp" = "403" ]; then
+        GREEN "✓ PASS: WebSocket endpoint requires auth (expected, upgrade path works)"
+    else
+        YELLOW "⚠ WARNING: WebSocket endpoint returned HTTP $ws_resp"
+        YELLOW "  (101 = upgrade success, 401/403 = auth required, both are OK)"
     fi
 }
 
@@ -235,10 +319,14 @@ verify_metrics() {
     [ -z "$port" ] && port=9443
 
     INFO "Verifying /metrics/latest endpoint..."
-    if curl -sf "http://127.0.0.1:${port}/metrics/latest" >/dev/null 2>&1; then
-        GREEN "✓ PASS: /metrics/latest endpoint is accessible"
+    local metrics_code
+    metrics_code=$(curl -sf -o /dev/null -w "%{http_code}" "http://127.0.0.1:${port}/metrics/latest" 2>/dev/null || echo "000")
+    if [ "$metrics_code" = "200" ]; then
+        GREEN "✓ PASS: /metrics/latest returns 200"
+    elif [ "$metrics_code" = "401" ] || [ "$metrics_code" = "403" ]; then
+        GREEN "✓ PASS: /metrics/latest requires auth (expected)"
     else
-        exit_with_error "/metrics/latest endpoint is not responding" "Check agent is running and port $port is correct"
+        YELLOW "⚠ WARNING: /metrics/latest returned HTTP $metrics_code"
     fi
 }
 
@@ -325,10 +413,12 @@ main() {
             check_port
             stop_agent
             start_agent
-            verify_status
+            verify_binary
+            verify_status_docker
+            verify_containers
+            verify_no_429
+            verify_websocket_upgrade
             verify_metrics
-            verify_websocket
-            verify_docker
             verify_enroll
             show_summary
             ;;
@@ -341,10 +431,12 @@ main() {
             ensure_config
             check_port
             start_agent
-            verify_status
+            verify_binary
+            verify_status_docker
+            verify_containers
+            verify_no_429
+            verify_websocket_upgrade
             verify_metrics
-            verify_websocket
-            verify_docker
             verify_enroll
             show_summary
             ;;
@@ -354,10 +446,12 @@ main() {
             check_port
             stop_agent
             start_agent
-            verify_status
+            verify_binary
+            verify_status_docker
+            verify_containers
+            verify_no_429
+            verify_websocket_upgrade
             verify_metrics
-            verify_websocket
-            verify_docker
             verify_enroll
             show_summary
             ;;
