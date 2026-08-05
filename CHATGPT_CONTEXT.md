@@ -1,7 +1,7 @@
-# ChatGPT Context — qwe1 Session Summary
+# ChatGPT Context — qwe1 Project Summary
 
-> Feed this file to ChatGPT to get up to speed on the project and the most
-> recent session's work without re-reading the whole codebase.
+> Feed this file to ChatGPT to get up to speed on the project and its
+> current state without re-reading the whole codebase.
 
 ## What is qwe1?
 
@@ -14,162 +14,147 @@ Flutter App (phone) <-- HTTP/WebSocket --> Go Agent (your server) --> Docker API
 - **`app/`** — Flutter (Android) app: dashboard, host metrics, Docker container
   management, file browser, alerts, terminal (UI stubbed).
 - **`agent/`** — Go binary (`github.com/qwe1/qwe1/agent`) that runs on each
-  user's Linux server. Exposes a REST API + WebSocket. Packages: `internal/`
-  `auth`, `config`, `docker`, `host`, `terminal`, `files`, `alerts`,
-  `ratelimit`, `audit`, `certs`, `server`.
+  user's Linux server. Exposes a REST API + WebSocket.
+- **`tools/`** — Development scripts (build, enroll, diagnose).
+- **`docs/`** — Long-form documentation.
 
-Auth is QR-based enrollment: `run.sh` prints a `qwe1://enroll?...` QR
-(`qwe1-agent --enroll`), the app scans it, exchanges the enrollment token via
-`POST /auth/enroll` for access/refresh tokens. **This flow works and must not
-be changed — never add manual access-token input.**
+## Repository Structure
 
-Environment notes:
-- Dev machine is a Mac with **no Docker**; Flutter SDK at
-  `/Users/binu/flutter/bin/flutter` (Dart/Flutter 3.19.6 — avoid newer Dart
-  syntax). The real agent runs on a **separate Linux Xubuntu server with
-  Docker**; the app connects from a phone.
-- macOS is used for build / `flutter analyze` / `flutter test` / `go build` /
-  `go vet` / `go test -race`. Docker integration tests must be skipped/mocked
-  on macOS (no daemon).
+```
+qwe1/
+├── agent/
+│   ├── cmd/
+│   │   └── qwe1-agent/
+│   │       └── main.go
+│   ├── config/
+│   │   ├── config.go
+│   │   └── config_test.go
+│   ├── internal/
+│   │   ├── alerts/
+│   │   ├── audit/
+│   │   ├── auth/
+│   │   ├── certs/
+│   │   ├── docker/
+│   │   ├── files/
+│   │   ├── host/
+│   │   ├── ratelimit/
+│   │   ├── server/
+│   │   └── terminal/
+│   ├── Dockerfile
+│   ├── go.mod
+│   └── go.sum
+├── app/
+│   └── (Flutter application)
+├── tools/
+│   ├── development.sh
+│   ├── enroll.sh
+│   └── diagnose.sh
+├── docs/
+│   ├── GETTING_STARTED.md
+│   ├── BACKEND_ROADMAP.md
+│   ├── report.md
+│   └── REFACTOR.md
+├── assets/
+│   └── branding/
+│       └── logo.svg
+├── README.md
+├── config.yaml
+├── config.example.yaml
+└── .github/
+    └── workflows/
+        ├── ci-agent.yml
+        ├── ci-app.yml
+        ├── release.yml
+        └── security.yml
+```
 
----
+## Key Invariants
 
-## Goal of the session
+- **QR-based enrollment/auth flow works** — do not change it, no manual token input.
+- **Capability map** intentionally includes `dockerSocket` (String) — Flutter must tolerate non-bool values (`Map<String, dynamic>`).
+- **Background Docker retry goroutine** writes `s.docker` under `sync.RWMutex`; handlers must use `dockerAvailable()`/`dockerManager()`, never read `s.docker` directly.
+- **Dev machine** is macOS (no Docker); **production** is Linux Xubuntu with Docker.
+- **Never require Docker on macOS**; Docker validation only on Linux.
 
-The user's server showed **Docker containers and server metrics as not shown in
-the app**, and the backend reported Docker capability as `false`. Task: audit,
-find root causes, fix, add detailed startup logging, update docs, and keep the
-QR enrollment/auth flow unchanged.
+## Scripts
 
-## Root causes found
+### `tools/development.sh`
+Builds the Go agent, verifies config, starts the agent, and runs health checks:
+- Builds agent binary (skips if current)
+- Verifies config exists (creates minimal HTTP config if missing)
+- Checks port availability
+- Stops any stale agent process
+- Starts the agent
+- Verifies `/status`, `/metrics/latest`, WebSocket `/ws` endpoints
+- On Linux only: verifies Docker socket and container listing
+- Prints colored PASS/FAIL summary
+- Fails fast with human-readable error messages
 
-1. **Docker "not available" / `docker:false`**
-   `s.docker != nil` was the only signal for Docker capability. If the daemon
-   wasn't ready when the agent started, it stayed broken forever — no retry, no
-   diagnostics.
+### `tools/enroll.sh`
+Generates a new enrollment token and QR code:
+- Ensures config exists
+- Starts the agent if not already running
+- Generates enrollment token via `--enroll` flag
+- Generates both ASCII QR and PNG QR (`enroll-qr.png`)
+- Prints LAN URL, Tailscale URL, token, and expiry
+- Verifies agent is responding on `/status`
 
-2. **Metrics not shown**
-   Metrics relied *only* on the WebSocket stream; if WS never delivered, the
-   dashboard was empty. Also, capabilities were not persisted at enrollment,
-   and `ServerStatus.capabilities` was `Map<String, bool>`, which **crashes**
-   the app when `caps` includes any non-bool value (the new `dockerSocket`
-   string).
+### `tools/diagnose.sh`
+Comprehensive 16-point health check covering Go installation, agent binary,
+config, port, /status, /metrics/latest, WebSocket, Docker (Linux only),
+Tailscale, LAN IP, disk usage, memory, firewall, running processes, and
+enrollment system. Prints `✓ PASS`, `⚠ WARNING`, or `✗ FAIL` with fixes.
 
----
+## Auth Flow (QR Enrollment)
 
-## What was changed
+1. Server generates enrollment token via `./tools/enroll.sh` or `qwe1-agent --enroll`
+2. Token is embedded in QR code payload (`qwe1://enroll?...`)
+3. Phone scans QR code
+4. App calls `POST /auth/enroll` with the token
+5. App receives access + refresh tokens
+6. Tokens are stored securely on the phone
+7. App fetches server status and capabilities
 
-### Backend (Go)
+No manual token entry. QR enrollment is the only pairing method.
 
-- `agent/internal/docker/docker.go`
-  - Structured `slog` logging.
-  - `resolveSocket()` — expands `unix://`/`tcp://` prefixes; defaults to
-    `/var/run/docker.sock`.
-  - `Manager.Socket()` and `Available()` (non-nil client + 5s ping timeout).
+## Recent Major Refactor (commit 568235f)
 
-- `agent/internal/server/server.go`
-  - `dockerMu sync.RWMutex` protecting `s.docker` (background goroutine writes
-    it; handlers read via accessors).
-  - `retryDocker(ctx)` — background goroutine, 6 attempts, 5s apart, started in
-    `Run()` when Docker is enabled but not ready at startup. Flipping
-    `caps.docker` to `true` as soon as the daemon becomes reachable.
-  - Accessors: `dockerAvailable()`, `dockerManager()`, `dockerSocketOrConfig()`.
-  - Detailed startup logging in `New()` (listener scheme, host, port, auth
-    store, metrics interval, docker, terminal, files, alerts, rate limits) and
-    in `Run()` for every goroutine.
+### Repository Structure
+- Moved docs (GETTING_STARTED.md, BACKEND_ROADMAP.md, report.md) → `docs/`
+- Moved `agent/internal/config/` → `agent/config/` (simplify import paths)
+- Removed `run.sh` (replaced by tools/ scripts)
+- Created `tools/` with three scripts
+- Created `docs/REFACTOR.md` with full change log
 
-- `agent/internal/server/handlers.go`
-  - `capabilities()` map now includes `dockerSocket` (a String diagnostic).
-  - `handleStatus` and `/auth/me` both use it.
-  - All `if s.docker == nil` replaced with the `m := s.dockerManager();
-    if m == nil { ... }` guard (returns 503 `DOCKER_UNAVAILABLE`), and all
-    `s.docker.X` replaced with `m.X`.
+### Backend Cleanup
+- Removed dead code across 12 Go files (auth, audit, docker, files, host, ratelimit, server, terminal)
+- Fixed `m.Users` bug in host.go, wired TemperaturePath
+- Simplified `detectLanIP`/`detectTailscaleIP` via shared helper
+- Replaced handrolled `splitString`/`trimSpace` with stdlib
+- Fixed `intervalSec` log unit bug (`5ns` → `5`)
+- Kept alerts, terminal, audit packages as requested (disabled, not deleted)
 
-- `agent/internal/server/server_test.go` — new tests:
-  - `TestCapabilitiesReported` — `/status` and `/auth/me` carry `caps` with
-    `docker` (bool) + `dockerSocket` (string) + `terminal`/`files`/`tempSensors`.
-  - `TestDockerContainersUnavailable` — `/docker/containers` returns 503
-    `DOCKER_UNAVAILABLE` with Docker disabled (macOS-safe).
+### CI Workflows
+- Fixed Go version 1.22 → 1.25 in ci-agent.yml, release.yml, security.yml
+- Removed broken `contract.yml` (referenced nonexistent `api/openapi.yaml`)
+- Removed `api/**` path references from ci-agent.yml, ci-app.yml
+- Created `agent/.goreleaser.yaml`
 
-- Fixed a logging unit bug: `intervalSec=5ns` → `5` (Duration division yields a
-  Duration; cast to `int`).
+### Verification
+- `go build ./...` ✓
+- `go vet ./...` ✓
+- `go test -race ./...` ✓
+- `flutter analyze` ✓ (0 errors, 2 pre-existing warnings)
+- `flutter test` ✓ (all pass)
 
-### Flutter app
+## Environment Notes
 
-- `app/lib/domain/repositories/server_repository.dart`
-  - `ServerStatus.capabilities` is now `Map<String, dynamic>` (was
-    `Map<String, bool>`).
+- Dev machine: macOS, no Docker; Flutter SDK at `/Users/binu/flutter/bin/` (Dart/Flutter 3.19.6)
+- Production: Linux Xubuntu server with Docker
+- macOS used for build / `flutter analyze` / `flutter test` / `go build` / `go vet` / `go test -race`
+- Docker integration tests must be skipped/mocked on macOS (no daemon)
 
-- `app/lib/data/repositories/server_repository_impl.dart`
-  - `getStatus` parses caps via `Map<String, dynamic>.from(...)`.
-  - `addServer` fetches capabilities from `/auth/me` after enrollment and
-    persists to `capsJson` (`'{}'` when empty — column is non-nullable).
-  - `watchMetrics` rewritten: keeps the WS channel, but adds
-    `_startMetricsPolling` — a guaranteed **5s HTTP polling baseline** of
-    `GET /metrics/latest`. WS JSON parsing wrapped in try/catch. Polling timer
-    cancelled via `controller.onCancel` (cleans up `_metricsControllers`).
-
-- `app/lib/state/servers/server_provider.dart`
-  - `_pingStatus` uses `repository.getStatus()` and copies capabilities.
-  - `refreshStatuses` persists the server when status **or** capabilities
-    change (added `_sameCapabilities`).
-
-- `app/lib/ui/screens/container_list_screen.dart`
-  - Friendly "Docker is not available" empty state when the error is
-    `ServerUnavailableException` (503 → capability gating); generic error
-    otherwise.
-
-- `app/lib/ui/screens/server_detail_screen.dart`
-  - Network ↓/↑ metric cards (`_formatBytes`, `_getNetColor`).
-  - `_buildMetricsError` includes a retry button via
-    `ref.invalidate(serverMetricsProvider(serverId))`.
-
-### Docs
-
-- `README.md` — Docker retry + metrics WS/HTTP-fallback notes.
-- `GETTING_STARTED.md` — updated `/status` response shape (incl. `dockerSocket`),
-  "Docker is not available" troubleshooting section, metrics fallback note.
-- `BACKEND_ROADMAP.md` — fixed `backei f#` heading typo, updated Docker
-  resilience note, Phase 10 HTTP-fallback line, test count 7 → 9.
-
----
-
-## Verification (all on macOS, all passing)
-
-- `go build ./...`, `go vet ./...`, `go test ./...` — pass.
-- `go test -race ./...` — pass (incl. new server tests).
-- `flutter analyze` (app/) — no errors/warnings introduced. Remaining are
-  pre-existing info-level style lints plus two documented warnings:
-  unused `dart:io` import in `app/lib/core/utils/qr_enrollment.dart:1` and
-  unused `go_router` import in `app/lib/ui/screens/qr_scan_screen.dart:3`.
-- `flutter test` — pass.
-
-## Still to do
-
-- **Real runtime verification on the Linux Docker server** (separate device):
-  deploy the updated agent, confirm `/status` reports `docker:true` and
-  `/docker/containers` returns real containers, then confirm the app shows
-  containers + live metrics.
-
-## Key invariants / gotchas
-
-- QR-based enrollment/auth flow works — **do not change it**, no manual token
-  input.
-- Capability map intentionally includes `dockerSocket` (String) — Flutter must
-  tolerate non-bool values (`Map<String, dynamic>`).
-- Background Docker retry goroutine writes `s.docker` under `sync.RWMutex`;
-  handlers must use `dockerAvailable()`/`dockerManager()`, never read
-  `s.docker` directly.
-- `app/lib/screens/server_detail_screen.dart` uses `serverId` field, not
-  `widget.serverId` (ConsumerWidget has no `widget`).
-- Metrics entity: `HostInfo.sensors` is `List<TempSensor>`; `NetworkMetrics`
-  has `rxBytesPerSec`, `txBytesPerSec`.
-- `config.yaml`: Docker enabled, socket `/var/run/docker.sock`, metricsInterval
-  5, listen port 9443 plain HTTP.
-- `build.md` in the repo was truncated to one line **before** this session
-  (pre-existing local change) — not part of this work.
-
-## Useful commands
+## Useful Commands
 
 ```bash
 # Backend
@@ -183,7 +168,22 @@ cd app && flutter analyze && flutter test
 export JAVA_HOME=~/java/current
 cd app && flutter build apk --debug
 
-# Run the agent on the Linux server
-./run.sh
-./run.sh --foreground   # foreground, streams logs
+# Development (Linux server)
+./tools/development.sh
+
+# Generate enrollment QR
+./tools/enroll.sh
+
+# Full health diagnostic
+./tools/diagnose.sh
 ```
+
+## Pre-existing Warnings (not from this session)
+
+- Unused `dart:io` import in `app/lib/core/utils/qr_enrollment.dart:1`
+- Unused `go_router` import in `app/lib/ui/screens/qr_scan_screen.dart:3`
+
+## Pre-existing Files (not from this session)
+
+- `build.md` — was a corrupted 3-byte file (`/co`), now deleted
+- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md` — standard project docs at root
