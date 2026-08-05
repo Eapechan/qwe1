@@ -18,17 +18,22 @@ import (
 	"github.com/qwe1/qwe1/agent/internal/host"
 )
 
+func (s *Server) capabilities() map[string]any {
+	return map[string]any{
+		"docker":       s.dockerAvailable(),
+		"dockerSocket": s.dockerSocketOrConfig(),
+		"terminal":     true,
+		"files":        true,
+		"tempSensors":  true,
+	}
+}
+
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	s.respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":         s.cfg.ServerName,
 		"agentVersion": "1.0.0",
 		"apiVersion":   1,
-		"caps": map[string]bool{
-			"docker":      s.docker != nil,
-			"terminal":    true,
-			"files":       true,
-			"tempSensors": true,
-		},
+		"caps":         s.capabilities(),
 	})
 }
 
@@ -198,13 +203,8 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"deviceId":     deviceID,
 		"serverName":   s.cfg.ServerName,
 		"agentVersion": "1.0.0",
-		"capabilities": map[string]bool{
-			"docker":      s.docker != nil,
-			"terminal":    true,
-			"files":       true,
-			"tempSensors": true,
-		},
-		"readOnly": s.readOnly,
+		"capabilities": s.capabilities(),
+		"readOnly":     s.readOnly,
 	})
 }
 
@@ -235,12 +235,13 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerContainers(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
-	containers, err := s.docker.ListContainers(r.Context(), false)
+	containers, err := m.ListContainers(r.Context(), false)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -254,12 +255,13 @@ func (s *Server) handleDockerContainers(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleDockerStart(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	if err := s.docker.Start(r.Context(), id); err != nil {
+	if err := m.Start(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -267,12 +269,13 @@ func (s *Server) handleDockerStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerStop(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	if err := s.docker.Stop(r.Context(), id); err != nil {
+	if err := m.Stop(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -280,12 +283,13 @@ func (s *Server) handleDockerStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	if err := s.docker.Restart(r.Context(), id); err != nil {
+	if err := m.Restart(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -293,12 +297,13 @@ func (s *Server) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerPause(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	if err := s.docker.Pause(r.Context(), id); err != nil {
+	if err := m.Pause(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -306,12 +311,13 @@ func (s *Server) handleDockerPause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerUnpause(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	if err := s.docker.Unpause(r.Context(), id); err != nil {
+	if err := m.Unpause(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -319,7 +325,8 @@ func (s *Server) handleDockerUnpause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
@@ -334,7 +341,7 @@ func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
 		signal = r.URL.Query().Get("signal")
 	}
 
-	if err := s.docker.KillSignal(r.Context(), id, signal); err != nil {
+	if err := m.KillSignal(r.Context(), id, signal); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -342,14 +349,15 @@ func (s *Server) handleDockerKill(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerRemove(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
 	force := r.URL.Query().Get("force") == "true"
 
-	if err := s.docker.Remove(r.Context(), id, force, false); err != nil {
+	if err := m.Remove(r.Context(), id, force, false); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -357,12 +365,13 @@ func (s *Server) handleDockerRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerInspect(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 	id := r.PathValue("id")
-	info, err := s.docker.Inspect(r.Context(), id)
+	info, err := m.Inspect(r.Context(), id)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -371,7 +380,8 @@ func (s *Server) handleDockerInspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerLogs(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
@@ -387,7 +397,7 @@ func (s *Server) handleDockerLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var logs []docker.LogLine
-	err := s.docker.StreamLogs(r.Context(), id, tail, false, func(line docker.LogLine) {
+	err := m.StreamLogs(r.Context(), id, tail, false, func(line docker.LogLine) {
 		logs = append(logs, line)
 	})
 	if err != nil {
@@ -401,12 +411,13 @@ func (s *Server) handleDockerLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerImages(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
-	images, err := s.docker.ListImages(r.Context())
+	images, err := m.ListImages(r.Context())
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -419,13 +430,14 @@ func (s *Server) handleDockerImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerImageInspect(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
 	id := r.PathValue("id")
-	info, err := s.docker.InspectImage(r.Context(), id)
+	info, err := m.InspectImage(r.Context(), id)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -435,13 +447,14 @@ func (s *Server) handleDockerImageInspect(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleDockerImagePull(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
 	id := r.PathValue("id")
-	if err := s.docker.PullImage(r.Context(), id); err != nil {
+	if err := m.PullImage(r.Context(), id); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -450,7 +463,8 @@ func (s *Server) handleDockerImagePull(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
@@ -458,7 +472,7 @@ func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request)
 	id := r.PathValue("id")
 	force := r.URL.Query().Get("force") == "true"
 
-	if err := s.docker.DeleteImage(r.Context(), id, force); err != nil {
+	if err := m.DeleteImage(r.Context(), id, force); err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
 	}
@@ -467,12 +481,13 @@ func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
-	volumes, err := s.docker.ListVolumes(r.Context())
+	volumes, err := m.ListVolumes(r.Context())
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -485,13 +500,14 @@ func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerVolumeInspect(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
 	name := r.PathValue("name")
-	info, err := s.docker.InspectVolume(r.Context(), name)
+	info, err := m.InspectVolume(r.Context(), name)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -501,12 +517,13 @@ func (s *Server) handleDockerVolumeInspect(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleDockerNetworks(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
-	networks, err := s.docker.ListNetworks(r.Context())
+	networks, err := m.ListNetworks(r.Context())
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return
@@ -519,13 +536,14 @@ func (s *Server) handleDockerNetworks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDockerNetworkInspect(w http.ResponseWriter, r *http.Request) {
-	if s.docker == nil {
+	m := s.dockerManager()
+	if m == nil {
 		s.respondError(w, http.StatusServiceUnavailable, "DOCKER_UNAVAILABLE", "Docker socket not reachable")
 		return
 	}
 
 	id := r.PathValue("id")
-	info, err := s.docker.InspectNetwork(r.Context(), id)
+	info, err := m.InspectNetwork(r.Context(), id)
 	if err != nil {
 		s.respondError(w, http.StatusInternalServerError, "DOCKER_ERROR", err.Error())
 		return

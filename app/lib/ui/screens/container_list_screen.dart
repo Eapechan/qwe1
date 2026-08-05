@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qwe1/core/error/app_exception.dart';
 import 'package:qwe1/state/docker/container_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/container_card.dart';
@@ -115,16 +116,49 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline_rounded, size: 48, color: context.danger),
-                    const SizedBox(height: 16),
-                    Text('Error: $error'),
-                  ],
-                ),
-              ),
+              error: (error, _) {
+                final isDockerUnavailable =
+                    error is ServerUnavailableException;
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isDockerUnavailable
+                              ? Icons.cloud_off_rounded
+                              : Icons.error_outline_rounded,
+                          size: 48,
+                          color: isDockerUnavailable
+                              ? Colors.grey
+                              : context.danger,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isDockerUnavailable
+                              ? 'Docker is not available'
+                              : 'Error: $error',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          isDockerUnavailable
+                              ? 'Docker is not reachable on this server. '
+                                  'Confirm the Docker daemon socket is mounted and the '
+                                  'agent can access it.'
+                              : '',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: context.onSurfaceMuted,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

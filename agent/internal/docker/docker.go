@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -73,16 +75,24 @@ type NetworkInfo struct {
 
 // Manager wraps the Docker client.
 type Manager struct {
-	cli *client.Client
+	cli    *client.Client
+	socket string
 }
 
 // New creates a Manager from the Docker environment. socketPath is optional;
 // when non-empty it overrides DOCKER_HOST (e.g. "unix:///var/run/docker.sock").
-// Returns nil, nil if Docker is not reachable so the agent can report the
-// capability as absent.
+// Returns (nil, error) if Docker is not reachable so the agent can report the
+// capability as absent. All decisions are logged at structured-info level so
+// the operator can diagnose socket / permission / daemon issues from agent.log.
 func New(socketPath string) (*Manager, error) {
-	var opts []client.Opt
-	opts = append(opts, client.WithAPIVersionNegotiation())
+	resolved := resolveSocket(socketPath)
+	slog.Info("docker: initializing client",
+		"configuredSocket", socketPath,
+		"resolvedSocket", resolved,
+		"envDockerHost", os.Getenv("DOCKER_HOST"),
+	)
+
+	opts := []client.Opt{client.WithAPIVersionNegotiation()}
 	if socketPath != "" {
 		opts = append(opts, client.WithHost(socketPath))
 	} else {
@@ -90,18 +100,59 @@ func New(socketPath string) (*Manager, error) {
 	}
 	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
+		slog.Error("docker: failed to construct client",
+			"socket", resolved,
+			"error", err,
+		)
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if _, err := cli.Ping(ctx); err != nil {
+		slog.Error("docker: ping failed",
+			"socket", resolved,
+			"timeoutSec", 5,
+			"error", err,
+		)
 		return nil, err
 	}
-	return &Manager{cli: cli}, nil
+
+	slog.Info("docker: connected",
+		"socket", resolved,
+	)
+	return &Manager{cli: cli, socket: resolved}, nil
+}
+
+// Socket returns the resolved Docker socket the manager is using, useful for
+// capability reporting and operator diagnostics.
+func (m *Manager) Socket() string {
+	if m == nil {
+		return ""
+	}
+	return m.socket
 }
 
 // Available reports whether Docker was reachable at construction.
-func (m *Manager) Available() bool { return m != nil }
+func (m *Manager) Available() bool { return m != nil && m.cli != nil }
+
+// resolveSocket normalises a configured socket path / URL to the form
+// the Docker client expects and reports it in logs.
+func resolveSocket(socketPath string) string {
+	if socketPath == "" {
+		if v := os.Getenv("DOCKER_HOST"); v != "" {
+			return v
+		}
+		return "unix:///var/run/docker.sock"
+	}
+	if !strings.HasPrefix(socketPath, "unix://") &&
+		!strings.HasPrefix(socketPath, "tcp://") &&
+		!strings.HasPrefix(socketPath, "http://") &&
+		!strings.HasPrefix(socketPath, "https://") {
+		return "unix://" + socketPath
+	}
+	return socketPath
+}
 
 // ListContainers returns all containers, optionally annotated with resource
 // usage via `docker stats` snapshots.

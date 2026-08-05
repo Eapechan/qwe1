@@ -117,11 +117,11 @@ agent/
 |---------|--------|---------|
 | Authentication (enroll/refresh/revoke) | Working | HMAC-SHA256 tokens, refresh rotation, device management |
 | Host metrics | Working | CPU, RAM, swap, disk, network, temperature, uptime, load, cache, buffers, disk I/O, kernel, arch, OS, boot time, users, processes |
-| Docker management | Working | Containers, images, volumes, networks — list, inspect, lifecycle, logs |
+| Docker management | Working | Containers, images, volumes, networks — list, inspect, lifecycle, logs. Retries in the background if the daemon is slow to start; capability flips to `true` automatically |
 | File management | Working | List, read, write, upload, mkdir, rename, delete, copy, search, favorites |
 | Terminal (PTY) | Working | Create, kill, resize sessions |
 | Alerts engine | Working | Threshold evaluation with debounce and deduplication |
-| Real-time updates | Working | WebSocket hub with multiplexed channels |
+| Real-time updates | Working | WebSocket hub with multiplexed channels; app falls back to 5s HTTP polling of `/metrics/latest` if the socket is unavailable |
 | Audit logging | Working | Bounded ring buffer of privileged actions |
 | Rate limiting | Working | Per-IP and per-token token-bucket limiter |
 | TLS | Working | TLS 1.3, self-signed ECDSA P-256 cert generation |

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"path/filepath"
@@ -27,6 +28,7 @@ type Server struct {
 	auth         *auth.Store
 	signer       *auth.Signer
 	host         *host.Collector
+	dockerMu     sync.RWMutex
 	docker       *docker.Manager
 	terminal     *terminal.Manager
 	files        *files.Manager
@@ -40,10 +42,23 @@ type Server struct {
 }
 
 func New(cfg *config.Config) (*Server, error) {
+	slog.Info("server: initializing",
+		"name", cfg.ServerName,
+		"listenHost", cfg.ListenHost,
+		"listenPort", cfg.ListenPort,
+		"tlsCert", cfg.TLSCertPath,
+		"tlsKey", cfg.TLSKeyPath,
+	)
+
 	authStore, err := auth.NewStore(filepath.Join(cfg.ServerName + ".auth.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create auth store: %w", err)
 	}
+	slog.Info("server: auth store loaded",
+		"path", cfg.ServerName+".auth.json",
+		"devices", authStore.DeviceCount(),
+		"hasSignerSecret", authStore.SignerSecret() != "",
+	)
 
 	// The signer secret is persisted to disk on the first enroll or refresh
 	// request, ensuring it survives process restarts after tokens are issued.
@@ -61,26 +76,59 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 
 	hostCollector := host.NewCollector(metricsInterval)
+	slog.Info("server: host metrics collector ready",
+		"intervalSec", int(metricsInterval/time.Second),
+	)
 
 	var dockerClient *docker.Manager
 	if cfg.Docker.Enabled {
 		dockerClient, err = docker.New(cfg.Docker.SocketPath)
 		if err != nil {
-			slog.Warn("failed to connect to docker", "error", err)
+			slog.Warn("server: docker unavailable at startup",
+				"socket", cfg.Docker.SocketPath,
+				"error", err,
+				"note", "agent will retry in background; capability will report true as soon as the daemon becomes reachable",
+			)
+		} else {
+			slog.Info("server: docker ready",
+				"socket", dockerClient.Socket(),
+			)
 		}
+	} else {
+		slog.Info("server: docker disabled by config")
 	}
 
 	terminalMgr := terminal.NewManager(cfg.Terminal.MaxSessions, time.Duration(cfg.Terminal.IdleTimeout)*time.Second, "/bin/sh")
+	slog.Info("server: terminal manager ready",
+		"maxSessions", cfg.Terminal.MaxSessions,
+		"idleTimeoutSec", cfg.Terminal.IdleTimeout,
+	)
+
 	filesMgr, err := files.New(cfg.Files.AllowedRoots, false, 0, cfg.Files.MaxUpload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create files manager: %w", err)
 	}
+	slog.Info("server: files manager ready",
+		"allowedRoots", cfg.Files.AllowedRoots,
+		"maxUploadBytes", cfg.Files.MaxUpload,
+	)
+
 	alertsEngine := alerts.New(alerts.Rules{}, cfg.Alerts.BufferSize, nil)
+	slog.Info("server: alerts engine ready",
+		"enabled", cfg.Alerts.Enabled,
+		"bufferSize", cfg.Alerts.BufferSize,
+	)
+
 	rateLimit := ratelimit.New(300.0/60.0, 10)
 	wsHub := NewWSHub()
 	auditLog := audit.New(1000)
 	limiterToken := ratelimit.New(10.0/60.0, 20)
 	limiterIP := ratelimit.New(60.0/60.0, 30)
+	slog.Info("server: rate limiters ready",
+		"globalPerMin", 300,
+		"tokenPerMin", 10,
+		"ipPerMin", 60,
+	)
 
 	return &Server{
 		cfg:          cfg,
@@ -183,8 +231,9 @@ func (s *Server) Run(ctx context.Context) error {
 		MinVersion: tls.VersionTLS13,
 	}
 
+	listenAddr := fmt.Sprintf("%s:%d", s.cfg.ListenHost, s.cfg.ListenPort)
 	s.httpServer = &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", s.cfg.ListenHost, s.cfg.ListenPort),
+		Addr:         listenAddr,
 		Handler:      s.routes(),
 		TLSConfig:    tlsConfig,
 		ReadTimeout:  30 * time.Second,
@@ -192,8 +241,11 @@ func (s *Server) Run(ctx context.Context) error {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	s.logCapabilities()
+
 	// Start metrics collection
 	go s.host.Run(ctx)
+	slog.Info("server: started host metrics collector goroutine")
 
 	// Start alerts evaluation via host metrics
 	go func() {
@@ -214,21 +266,34 @@ func (s *Server) Run(ctx context.Context) error {
 			}
 		}
 	}()
+	slog.Info("server: started alerts evaluation goroutine")
 
 	// Start metrics broadcast
 	go s.broadcastMetrics(ctx)
+	slog.Info("server: started metrics broadcast goroutine")
 
 	// Start WebSocket hub
 	go s.wsHub.Run(ctx)
+	slog.Info("server: started websocket hub goroutine")
 
-	slog.Info("server listening", "addr", s.httpServer.Addr)
+	// Retry Docker in the background: the daemon is frequently still starting
+	// when systemd launches the agent, so a fast-fail at construction should
+	// not permanently disable the capability. Retries a few times, then gives up.
+	if s.cfg.Docker.Enabled && !s.dockerAvailable() {
+		go s.retryDocker(ctx)
+	}
+
+	slog.Info("server listening", "addr", listenAddr,
+		"tls", s.cfg.TLSCertPath != "" && s.cfg.TLSKeyPath != "")
 
 	// Start HTTP server
 	errCh := make(chan error, 1)
 	go func() {
 		if s.cfg.TLSCertPath != "" && s.cfg.TLSKeyPath != "" {
+			slog.Info("server: starting TLS listener")
 			errCh <- s.httpServer.ListenAndServeTLS(s.cfg.TLSCertPath, s.cfg.TLSKeyPath)
 		} else {
+			slog.Info("server: starting plain HTTP listener")
 			errCh <- s.httpServer.ListenAndServe()
 		}
 	}()
@@ -243,4 +308,89 @@ func (s *Server) Run(ctx context.Context) error {
 		defer cancel()
 		return s.httpServer.Shutdown(shutdownCtx)
 	}
+}
+
+// logCapabilities emits a concise summary of which subsystems are enabled, so
+// an operator can confirm the agent is running with the intended feature set.
+func (s *Server) logCapabilities() {
+	dockerOK := s.dockerAvailable()
+	slog.Info("server: capabilities",
+		"docker", dockerOK,
+		"dockerSocket", s.dockerSocketOrConfig(),
+		"terminal", true,
+		"files", true,
+		"tempSensors", s.cfg.Host.TemperaturePath != "",
+		"alerts", s.cfg.Alerts.Enabled,
+	)
+}
+
+// dockerAvailable returns whether the Docker manager is currently usable.
+func (s *Server) dockerAvailable() bool {
+	s.dockerMu.RLock()
+	defer s.dockerMu.RUnlock()
+	return s.docker != nil && s.docker.Available()
+}
+
+// dockerManager returns the current Docker manager pointer under the read lock,
+// or nil if Docker is unavailable. Callers must not retain the pointer beyond
+// the scope of a single request, since the background retry may replace it.
+func (s *Server) dockerManager() *docker.Manager {
+	s.dockerMu.RLock()
+	defer s.dockerMu.RUnlock()
+	if s.docker == nil || !s.docker.Available() {
+		return nil
+	}
+	return s.docker
+}
+
+// dockerSocketOrConfig exposes the resolved socket for diagnostics.
+func (s *Server) dockerSocketOrConfig() string {
+	s.dockerMu.RLock()
+	defer s.dockerMu.RUnlock()
+	if s.docker != nil {
+		if s := s.docker.Socket(); s != "" {
+			return s
+		}
+	}
+	return s.cfg.Docker.SocketPath
+}
+
+// retryDocker attempts to (re)connect to the Docker daemon a few times in the
+// background. Success or time expiry updates s.docker under lock.
+func (s *Server) retryDocker(ctx context.Context) {
+	const attempts = 6
+	const wait = 5 * time.Second
+	for i := 1; i <= attempts; i++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+		}
+		slog.Info("server: retrying docker connection",
+			"attempt", i,
+			"maxAttempts", attempts,
+			"socket", s.cfg.Docker.SocketPath,
+		)
+		m, err := docker.New(s.cfg.Docker.SocketPath)
+		if err != nil {
+			slog.Warn("server: docker retry failed",
+				"attempt", i,
+				"socket", s.cfg.Docker.SocketPath,
+				"error", err,
+			)
+			continue
+		}
+		s.dockerMu.Lock()
+		s.docker = m
+		s.dockerMu.Unlock()
+		slog.Info("server: docker connected after retry",
+			"attempt", i,
+			"socket", m.Socket(),
+		)
+		return
+	}
+	slog.Warn("server: giving up on docker after retries",
+		"attempts", attempts,
+		"socket", s.cfg.Docker.SocketPath,
+	)
 }

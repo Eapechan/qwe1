@@ -112,6 +112,25 @@ class ServerRepositoryImpl implements ServerRepository {
     await secureStorage.saveRefreshToken(serverId, refreshToken);
     await secureStorage.saveFingerprint(serverId, serverFingerprint);
 
+    // Refresh capabilities from /auth/me right after enrollment so the app
+    // knows immediately whether Docker/terminal/files are available.
+    Map<String, dynamic> capabilities = const {};
+    try {
+      final meClient = ApiClient(
+        baseUrl: agentUrl,
+        onRefreshToken: () => _refreshAccessToken(serverId),
+      );
+      meClient.setAccessToken(accessToken);
+      final me = await meClient.get('/auth/me');
+      final meData = me.data as Map<String, dynamic>;
+      capabilities = Map<String, dynamic>.from(
+        meData['capabilities'] as Map? ?? const {},
+      );
+      debugPrint('[server] fetched capabilities for $serverId: $capabilities');
+    } catch (e) {
+      debugPrint('[server] failed to fetch capabilities for $serverId: $e');
+    }
+
     // Persist the server row (database).
     if (existing != null) {
       // Update existing row — reuse ID, update credentials and timestamp.
@@ -120,6 +139,7 @@ class ServerRepositoryImpl implements ServerRepository {
         name: Value(name),
         agentUrl: Value(agentUrl),
         tailscaleUrl: Value(tailscaleUrl.isEmpty ? null : tailscaleUrl),
+        capsJson: Value(capabilities.isEmpty ? '{}' : jsonEncode(capabilities)),
         createdAt: Value(now),
       ));
     } else {
@@ -129,6 +149,7 @@ class ServerRepositoryImpl implements ServerRepository {
           name: name,
           agentUrl: agentUrl,
           tailscaleUrl: Value(tailscaleUrl.isEmpty ? null : tailscaleUrl),
+          capsJson: Value(capabilities.isEmpty ? '{}' : jsonEncode(capabilities)),
           createdAt: now,
         ));
       } catch (e) {
@@ -190,7 +211,7 @@ class ServerRepositoryImpl implements ServerRepository {
       name: data['name'] as String,
       agentVersion: data['agentVersion'] as String,
       apiVersion: data['apiVersion'] as int,
-      capabilities: Map<String, bool>.from(data['caps'] as Map),
+      capabilities: Map<String, dynamic>.from(data['caps'] as Map? ?? const {}),
     );
   }
 
@@ -229,22 +250,62 @@ class ServerRepositoryImpl implements ServerRepository {
     final controller = StreamController<HostMetrics>.broadcast();
     _metricsControllers[serverId] = controller;
 
+    // Subscribe to the WebSocket metrics channel. The server pushes a new
+    // envelope every metricsInterval, giving us live updates.
     _connectWebSocket(serverId, ['metrics']).then((_) {
       final wsClient = _wsClients[serverId];
       if (wsClient != null) {
         wsClient.subscribe('metrics').listen(
           (data) {
             if (data is Map<String, dynamic>) {
-              final dto = MetricsDto.fromJson(data);
-              controller.add(dto.toEntity());
+              try {
+                final dto = MetricsDto.fromJson(data);
+                controller.add(dto.toEntity());
+              } catch (e) {
+                debugPrint('[server] failed to parse WS metrics: $e');
+              }
             }
           },
           onError: controller.addError,
         );
       }
+    }).catchError((e) {
+      debugPrint('[server] metrics WS connect failed for $serverId: $e');
     });
 
+    // HTTP polling fallback: the WebSocket may be blocked, rejected, or slow
+    // to deliver on flaky networks. Polling /metrics/latest every interval
+    // guarantees the dashboard always shows fresh data.
+    _startMetricsPolling(serverId, controller);
+
     return controller.stream;
+  }
+
+  /// Polls `/metrics/latest` on a fixed interval and feeds the result into the
+  /// metrics stream. The WebSocket remains the primary, low-latency source; the
+  /// poll is a guaranteed baseline so the UI is never empty.
+  void _startMetricsPolling(String serverId, StreamController<HostMetrics> controller) {
+    Timer? timer;
+    timer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (controller.isClosed) {
+        timer?.cancel();
+        return;
+      }
+      try {
+        final client = _getAuthenticatedClient(serverId);
+        final response = await client.get('/metrics/latest');
+        final data = response.data as Map<String, dynamic>;
+        final dto = MetricsDto.fromJson(data);
+        controller.add(dto.toEntity());
+      } catch (e) {
+        debugPrint('[server] metrics poll failed for $serverId: $e');
+      }
+    });
+
+    controller.onCancel = () {
+      timer?.cancel();
+      _metricsControllers.remove(serverId);
+    };
   }
 
   ApiClient _getAuthenticatedClient(String serverId) {

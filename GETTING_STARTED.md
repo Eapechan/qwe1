@@ -20,7 +20,7 @@ There is **no cloud**. Your phone talks directly to your server.
 | Go agent builds | Working |
 | Flutter APK builds | Working |
 | Host metrics (CPU/RAM/Disk) | Working |
-| Docker management | Working |
+| Docker management | Working (agent retries if daemon starts late) |
 | File browser (list/read/write/upload) | Working |
 | Alerts engine | Working |
 | Authentication (enroll/refresh/revoke) | Working |
@@ -99,8 +99,13 @@ curl http://YOUR_SERVER_IP:9443/status
 
 Expected response:
 ```json
-{"name":"my-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"terminal":true,"files":true,"tempSensors":true}}
+{"name":"my-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"dockerSocket":"unix:///var/run/docker.sock","terminal":true,"files":true,"tempSensors":true}}
 ```
+
+`caps.dockerSocket` is a diagnostic: it holds the socket the agent is watching.
+If the Docker daemon is slow to start, the agent retries in the background and
+flips `caps.docker` to `true` automatically as soon as the daemon becomes
+reachable — no agent restart needed.
 
 ### Step 2: Verify it works
 
@@ -297,7 +302,7 @@ The dashboard should show your server with live status. Tap it to see:
 | Feature | Status |
 |---------|--------|
 | Terminal | Backend PTY works, Flutter UI has display but input not wired |
-| Real-time metrics | Backend WebSocket broadcasts, UI shows placeholder values |
+| Real-time metrics | Backend WebSocket broadcasts; app uses WS and falls back to 5s HTTP polling of `/metrics/latest` if the socket is unavailable |
 | File download | Backend supports it, UI download button not implemented |
 | File preview | Backend supports it, UI preview not implemented |
 | Certificate pinning | Fingerprint stored but not validated yet |
@@ -360,6 +365,18 @@ TLS certs configured). Delete the server in the app, then on the server run:
 The new QR will advertise `http://…` (matching your plain-HTTP config). Scan
 it again. If you need HTTPS, set up TLS certs first — see the production steps
 above.
+
+### "Docker is not available" in the app
+
+The app shows this when the agent reports it can't reach the Docker socket.
+This is expected if the agent started before the Docker daemon. The agent
+retries automatically every 5 seconds (up to 6 times) and flips the capability
+to `true` as soon as the daemon responds — refresh the server status in the app.
+
+Check on the server:
+- Is Docker running? `sudo systemctl status docker`
+- Does the agent's user have access to the socket? `ls -l /var/run/docker.sock` (group `docker`)
+- What does the agent log say? `tail -50 agent.log | grep -i docker`
 
 ### "Agent failed to start"
 

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/domain/entities/server.dart';
 import 'package:qwe1/domain/entities/metrics.dart';
 import 'package:qwe1/domain/repositories/server_repository.dart';
-import 'package:qwe1/data/sources/remote/api_client.dart';
 
 // Server list provider
 final serverListProvider = StateNotifierProvider<ServerListNotifier, AsyncValue<List<Server>>>((ref) {
@@ -64,10 +63,11 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
     final newServers = <Server>[];
     for (final server in updated) {
       final original = currentServers.firstWhere((s) => s.id == server.id);
-      if (server.status != original.status) {
+      if (server.status != original.status ||
+          !_sameCapabilities(server.capabilities, original.capabilities)) {
         changed = true;
-        // Persist status change. Call repository directly (not the notifier's
-        // updateServer) to avoid triggering loadServers recursively.
+        // Persist status/capability change. Call repository directly (not the
+        // notifier's updateServer) to avoid triggering loadServers recursively.
         repository.updateServer(server);
       }
       newServers.add(server);
@@ -77,11 +77,22 @@ class ServerListNotifier extends StateNotifier<AsyncValue<List<Server>>> {
     }
   }
 
+  static bool _sameCapabilities(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final keys = {...a.keys, ...b.keys};
+    for (final k in keys) {
+      if (a[k] != b[k]) return false;
+    }
+    return true;
+  }
+
   Future<Server> _pingStatus(Server server) async {
     try {
-      final client = ApiClient(baseUrl: server.agentUrl);
-      await client.get('/status');
-      return server.copyWith(status: 'online');
+      final repository = ref.read(serverRepositoryProvider);
+      final status = await repository.getStatus(server.agentUrl);
+      return server.copyWith(
+        status: 'online',
+        capabilities: status.capabilities,
+      );
     } catch (e) {
       debugPrint('[status] ping failed for ${server.name} (${server.agentUrl}): $e');
       return server.copyWith(status: 'offline');

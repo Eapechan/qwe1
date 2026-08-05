@@ -108,6 +108,73 @@ func TestStatus(t *testing.T) {
 	}
 }
 
+// TestCapabilitiesReported verifies the capability envelope (including the
+// dockerSocket diagnostic) is present on /status and /auth/me. It runs with
+// Docker disabled, so it is safe on machines without a Docker daemon.
+func TestCapabilitiesReported(t *testing.T) {
+	s, _ := newTestServer(t)
+	h := s.routes()
+
+	access, _ := enroll(t, s, h)
+
+	for _, tc := range []struct {
+		name, path string
+		token      string
+	}{
+		{"status", "/status", ""},
+		{"me", "/auth/me", access},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := doReq(t, h, "GET", tc.path, nil, tc.token)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s = %d body = %s", tc.path, rec.Code, rec.Body.String())
+			}
+			var body struct {
+				Caps map[string]any `json:"caps"`
+			}
+			_ = json.Unmarshal(rec.Body.Bytes(), &body)
+			caps := body.Caps
+			if caps == nil {
+				var body2 struct {
+					Capabilities map[string]any `json:"capabilities"`
+				}
+				_ = json.Unmarshal(rec.Body.Bytes(), &body2)
+				caps = body2.Capabilities
+			}
+			if caps == nil {
+				t.Fatalf("%s: no caps/capabilities in %s", tc.path, rec.Body.String())
+			}
+			if _, ok := caps["docker"].(bool); !ok {
+				t.Fatalf("%s: docker cap missing or not bool: %v", tc.path, caps)
+			}
+			if _, ok := caps["dockerSocket"].(string); !ok {
+				t.Fatalf("%s: dockerSocket diag missing: %v", tc.path, caps)
+			}
+			for _, k := range []string{"terminal", "files", "tempSensors"} {
+				if _, ok := caps[k].(bool); !ok {
+					t.Fatalf("%s: %s cap missing: %v", tc.path, k, caps)
+				}
+			}
+		})
+	}
+}
+
+// TestDockerContainersUnavailable verifies the Docker endpoint returns 503
+// DOCKER_UNAVAILABLE when the manager is not reachable — this must hold on
+// machines without a Docker daemon (e.g. macOS CI).
+func TestDockerContainersUnavailable(t *testing.T) {
+	s, _ := newTestServer(t)
+	h := s.routes()
+	access, _ := enroll(t, s, h)
+	rec := doReq(t, h, "GET", "/docker/containers", nil, access)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("docker/containers = %d, want 503 (body %s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "DOCKER_UNAVAILABLE") {
+		t.Fatalf("expected DOCKER_UNAVAILABLE in body: %s", rec.Body.String())
+	}
+}
+
 func TestAuthMiddlewareRejectsMissingToken(t *testing.T) {
 	s, _ := newTestServer(t)
 	h := s.routes()

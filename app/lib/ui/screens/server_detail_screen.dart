@@ -48,7 +48,7 @@ class ServerDetailScreen extends ConsumerWidget {
               metricsAsync.when(
                 data: (metrics) => _buildMetricsSection(context, metrics),
                 loading: () => _buildMetricsLoading(),
-                error: (error, _) => _buildMetricsError(context, error),
+                error: (error, _) => _buildMetricsError(context, ref, error),
               ),
               const SizedBox(height: 20),
               _buildQuickActions(context),
@@ -239,10 +239,41 @@ class ServerDetailScreen extends ConsumerWidget {
                   ? (host.sensors.first.celsius / 100).clamp(0.0, 1.0)
                   : 0,
             ),
+            MetricCard(
+              label: 'Network ↓',
+              value: _formatBytes(host.network.rxBytesPerSec),
+              icon: Icons.south_rounded,
+              color: _getNetColor(host.network.rxBytesPerSec),
+              progress: 0,
+            ),
+            MetricCard(
+              label: 'Network ↑',
+              value: _formatBytes(host.network.txBytesPerSec),
+              icon: Icons.north_rounded,
+              color: _getNetColor(host.network.txBytesPerSec),
+              progress: 0,
+            ),
           ],
         ),
       ],
     );
+  }
+
+  String _formatBytes(num bytesPerSec) {
+    if (bytesPerSec <= 0) return '0 B/s';
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    var v = bytesPerSec.toDouble();
+    var unit = 0;
+    while (v >= 1024 && unit < units.length - 1) {
+      v /= 1024;
+      unit++;
+    }
+    return '${v.toStringAsFixed(v >= 100 ? 0 : 1)} ${units[unit]}';
+  }
+
+  Color _getNetColor(num bytesPerSec) {
+    // Neutral color — network is informational, not a saturation metric.
+    return const Color(0xFF22C55E);
   }
 
   Widget _buildMetricsLoading() {
@@ -254,17 +285,39 @@ class ServerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetricsError(BuildContext context, Object error) {
+  Widget _buildMetricsError(BuildContext context, WidgetRef ref, Object error) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Center(
-          child: Text(
-            'Unable to load metrics',
-            style: TextStyle(
-              color: context.onSurfaceMuted,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, color: context.onSurfaceMuted),
+            const SizedBox(height: 8),
+            Text(
+              'Unable to load metrics',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.onSurfaceMuted,
+              ),
             ),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              '$error',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.onSurfaceMuted.withOpacity(0.7),
+                  ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () {
+                ref.invalidate(serverMetricsProvider(serverId));
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry'),
+            ),
+          ],
         ),
       ),
     );

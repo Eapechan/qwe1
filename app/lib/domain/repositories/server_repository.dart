@@ -31,7 +31,7 @@ class ServerStatus {
   final String name;
   final String agentVersion;
   final int apiVersion;
-  final Map<String, bool> capabilities;
+  final Map<String, dynamic> capabilities;
 
   ServerStatus({
     required this.name,
