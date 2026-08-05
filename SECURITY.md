@@ -54,7 +54,7 @@ Out of scope (please confirm with maintainers before testing): third-party infra
 
 ## Security expectations for releases
 
-Every release must pass the security checklist in the [security architecture](https://github.com/Eapechan/qwe1/blob/v1/docs/14-security-architecture.md) §17 on the `v1` branch. Security fixes are released as PATCH (or MINOR if a feature is involved) and announced via GitHub Security Advisories.
+Every release must pass the security checklist in the security architecture documentation. Security fixes are released as PATCH (or MINOR if a feature is involved) and announced via GitHub Security Advisories.
 
 ## Contact
 

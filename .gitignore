@@ -42,3 +42,9 @@ agent/qwe1-agent
 
 # Agent runtime (built binary, auth store, logs, pid)
 scripts/.runtime/
+agent/qwe1-agent
+agent/qwe1-agent-linux
+enroll-qr.png
+agent.log
+agent.pid
+config.yaml

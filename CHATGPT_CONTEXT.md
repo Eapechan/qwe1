@@ -46,14 +46,10 @@ qwe1/
 ├── app/
 │   └── (Flutter application)
 ├── tools/
-│   ├── development.sh
-│   ├── enroll.sh
-│   └── diagnose.sh
+│   └── qwe1.sh
 ├── docs/
 │   ├── GETTING_STARTED.md
-│   ├── BACKEND_ROADMAP.md
-│   ├── report.md
-│   └── REFACTOR.md
+│   └── BACKEND_ROADMAP.md
 ├── assets/
 │   └── branding/
 │       └── logo.svg
@@ -78,32 +74,23 @@ qwe1/
 
 ## Scripts
 
-### `tools/development.sh`
-Builds the Go agent, verifies config, starts the agent, and runs health checks:
-- Builds agent binary (skips if current)
-- Verifies config exists (creates minimal HTTP config if missing)
-- Checks port availability
-- Stops any stale agent process
-- Starts the agent
-- Verifies `/status`, `/metrics/latest`, WebSocket `/ws` endpoints
-- On Linux only: verifies Docker socket and container listing
-- Prints colored PASS/FAIL summary
-- Fails fast with human-readable error messages
-
-### `tools/enroll.sh`
-Generates a new enrollment token and QR code:
-- Ensures config exists
-- Starts the agent if not already running
-- Generates enrollment token via `--enroll` flag
-- Generates both ASCII QR and PNG QR (`enroll-qr.png`)
-- Prints LAN URL, Tailscale URL, token, and expiry
-- Verifies agent is responding on `/status`
-
-### `tools/diagnose.sh`
-Comprehensive 16-point health check covering Go installation, agent binary,
-config, port, /status, /metrics/latest, WebSocket, Docker (Linux only),
-Tailscale, LAN IP, disk usage, memory, firewall, running processes, and
-enrollment system. Prints `✓ PASS`, `⚠ WARNING`, or `✗ FAIL` with fixes.
+### `tools/qwe1.sh`
+Unified management script replacing development.sh, enroll.sh, diagnose.sh:
+- `dev` — Build, restart, verify everything
+- `doctor` — Full diagnostics
+- `repair` — Auto-fix common issues
+- `start` — Start agent safely
+- `stop` — Stop all agent processes
+- `restart` — Stop, build, start
+- `status` — Show agent status
+- `logs` — Tail agent logs
+- `enroll` — Generate enrollment token + QR
+- `clean` — Remove temp files and old binaries
+- Always deletes old binary before rebuild
+- Cross-compiles for Linux (GOOS=linux)
+- Process management: detect, stop, wait for port, start, verify
+- Full verification suite: REST, metrics, WebSocket, Docker
+- No duplicate processes, no stale binaries
 
 ## Auth Flow (QR Enrollment)
 
@@ -120,11 +107,9 @@ No manual token entry. QR enrollment is the only pairing method.
 ## Recent Major Refactor (commit 568235f)
 
 ### Repository Structure
-- Moved docs (GETTING_STARTED.md, BACKEND_ROADMAP.md, report.md) → `docs/`
+- Moved docs (GETTING_STARTED.md, BACKEND_ROADMAP.md) → `docs/`
 - Moved `agent/internal/config/` → `agent/config/` (simplify import paths)
-- Removed `run.sh` (replaced by tools/ scripts)
-- Created `tools/` with three scripts
-- Created `docs/REFACTOR.md` with full change log
+- Replaced `run.sh` and tools/ scripts with unified `tools/qwe1.sh`
 
 ### Backend Cleanup
 - Removed dead code across 12 Go files (auth, audit, docker, files, host, ratelimit, server, terminal)
@@ -149,7 +134,7 @@ No manual token entry. QR enrollment is the only pairing method.
 
 ## Environment Notes
 
-- Dev machine: macOS, no Docker; Flutter SDK at `/Users/binu/flutter/bin/` (Dart/Flutter 3.19.6)
+- Dev machine: macOS, no Docker; Flutter SDK at `~/flutter/bin/` (Dart/Flutter 3.19.6)
 - Production: Linux Xubuntu server with Docker
 - macOS used for build / `flutter analyze` / `flutter test` / `go build` / `go vet` / `go test -race`
 - Docker integration tests must be skipped/mocked on macOS (no daemon)
@@ -161,7 +146,7 @@ No manual token entry. QR enrollment is the only pairing method.
 cd agent && go build ./... && go vet ./... && go test -race ./...
 
 # Flutter
-export PATH="$PATH:/Users/binu/flutter/bin"
+export PATH="$PATH:~/flutter/bin"
 cd app && flutter analyze && flutter test
 
 # Android APK (needs JAVA_HOME)
@@ -169,13 +154,13 @@ export JAVA_HOME=~/java/current
 cd app && flutter build apk --debug
 
 # Development (Linux server)
-./tools/development.sh
+./tools/qwe1.sh dev
 
 # Generate enrollment QR
-./tools/enroll.sh
+./tools/qwe1.sh enroll
 
 # Full health diagnostic
-./tools/diagnose.sh
+./tools/qwe1.sh doctor
 ```
 
 ## Pre-existing Warnings (not from this session)

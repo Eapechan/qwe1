@@ -61,7 +61,7 @@ go version
 ### Step 1: Clone and run
 
 ```bash
-git clone https://github.com/Eapechan/qwe1.git
+git clone https://github.com/qwe1/qwe1.git
 cd qwe1
 ./run.sh
 ```
@@ -99,7 +99,7 @@ curl http://YOUR_SERVER_IP:9443/status
 
 Expected response:
 ```json
-{"name":"my-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"dockerSocket":"unix:///var/run/docker.sock","terminal":true,"files":true,"tempSensors":true}}
+{"name":"your-server","agentVersion":"1.0.0","apiVersion":1,"caps":{"docker":true,"dockerSocket":"unix:///var/run/docker.sock","terminal":true,"files":true,"tempSensors":true}}
 ```
 
 `caps.dockerSocket` is a diagnostic: it holds the socket the agent is watching.
@@ -157,8 +157,8 @@ that auto-starts on boot.
    ```bash
    sudo mkdir -p /etc/qwe1/certs
    sudo openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -sha256 \
-     -subj "/CN=my-server" \
-     -addext "subjectAltName=DNS:my-server,IP:YOUR_SERVER_IP" \
+      -subj "/CN=your-server" \
+      -addext "subjectAltName=DNS:your-server,IP:YOUR_SERVER_IP" \
      -keyout /etc/qwe1/certs/key.pem -out /etc/qwe1/certs/cert.pem
    sudo chmod 600 /etc/qwe1/certs/key.pem
    ```
@@ -180,7 +180,7 @@ export PATH="$PATH:$HOME/flutter/bin:$HOME/android-sdk/platform-tools"
 ### Step 2: Build
 
 ```bash
-cd /Users/binu/qwe1/app
+cd ~/qwe1/app
 flutter pub get
 flutter build apk --debug
 ```
@@ -190,7 +190,7 @@ Build time: ~30-60 seconds.
 ### Step 3: Locate the APK
 
 ```
-/Users/binu/qwe1/app/build/app/outputs/flutter-apk/app-debug.apk
+~/qwe1/app/build/app/outputs/flutter-apk/app-debug.apk
 ```
 
 Size: ~156 MB (debug build, includes all architectures).
@@ -204,7 +204,7 @@ Size: ~156 MB (debug build, includes all architectures).
 1. Connect phone via USB
 2. Copy APK to phone storage:
    ```bash
-   adb push /Users/binu/qwe1/app/build/app/outputs/flutter-apk/app-debug.apk /sdcard/Download/
+   adb push ~/qwe1/app/build/app/outputs/flutter-apk/app-debug.apk /sdcard/Download/
    ```
 3. Open file manager on phone, tap the APK, install
 
@@ -213,7 +213,7 @@ Size: ~156 MB (debug build, includes all architectures).
 From your Mac:
 
 ```bash
-cd /Users/binu/qwe1/app/build/app/outputs/flutter-apk/
+cd ~/qwe1/app/build/app/outputs/flutter-apk/
 python3 -m http.server 8080
 ```
 
@@ -339,7 +339,7 @@ export JAVA_HOME=~/java/current
 ### Enrollment fails in the app
 
 - **"Invalid token format"**: the token must start with `qwe1-`. The `--enroll` command now generates tokens in this format (e.g. `qwe1-...`). Make sure you paste the full token including the `qwe1-` prefix.
-- Verify the enrollment token hash matches what's in `my-server.auth.json`
+- Verify the enrollment token hash matches what's in `your-server.auth.json`
 - Check the token hasn't expired
 - Check the token hasn't been used already (set `"used": false`)
 
@@ -433,14 +433,14 @@ To make this fully functional, implement in this order:
 
 # Flutter APK
 export JAVA_HOME=~/java/current
-cd /Users/binu/qwe1/app && flutter build apk --debug
+cd ~/qwe1/app && flutter build apk --debug
 
 # Flutter analyze
-cd /Users/binu/qwe1/app && flutter analyze
+cd ~/qwe1/app && flutter analyze
 
 # Go tests
-cd /Users/binu/qwe1/agent && go test ./...
+cd ~/qwe1/agent && go test ./...
 
 # Code generation (after model changes)
-cd /Users/binu/qwe1/app && dart run build_runner build
+cd ~/qwe1/app && dart run build_runner build
 ```
