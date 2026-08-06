@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/animated_background.dart';
-import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class StartScreen extends ConsumerStatefulWidget {
   const StartScreen({super.key});
@@ -18,7 +17,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
   late AnimationController _buttonController;
   late AnimationController _glowController;
   late AnimationController _rippleController;
-  bool _isAnimating = false;
+  bool _navigating = false;
 
   @override
   void initState() {
@@ -46,18 +45,15 @@ class _StartScreenState extends ConsumerState<StartScreen>
   }
 
   void _onStartTap() {
-    if (_isAnimating) return;
-    setState(() => _isAnimating = true);
+    if (_navigating) return;
+    _navigating = true;
 
     _buttonController.forward(from: 0);
     _glowController.forward(from: 0);
     _rippleController.forward(from: 0);
 
-    // Load servers (the notifier constructor already calls this, but
-    // ensure it happens here too in case the notifier was already created)
     ref.read(serverListProvider.notifier).loadServers();
 
-    // Wait for animation to feel intentional, then navigate to dashboard
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
         context.go('/');
@@ -154,16 +150,16 @@ class _StartScreenState extends ConsumerState<StartScreen>
   }
 
   Widget _buildStartButton(ThemeData theme) {
-    return AnimatedBuilder(
-      animation: _buttonController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 1.0 - (1.0 - 0.96) * _buttonController.value,
-          child: child,
-        );
-      },
-      child: TouchFeedback(
-        onTap: _onStartTap,
+    return GestureDetector(
+      onTap: _onStartTap,
+      child: AnimatedBuilder(
+        animation: _buttonController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 1.0 - (1.0 - 0.96) * _buttonController.value,
+            child: child,
+          );
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
           decoration: BoxDecoration(
