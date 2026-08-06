@@ -11,80 +11,93 @@
 
 ---
 
-**qwe1** is a privacy-first, open-source mobile app for managing your self-hosted Linux servers. Monitor health, manage Docker containers, drop into a terminal, browse files, and get alerted — all from your phone, talking **directly** to a lightweight agent on each of your servers.
+## Project Status
 
-**No account. No cloud. No vendor between you and your hardware.**
+| | |
+|---|---|
+| **Current Version** | v2.0 |
+| **Status** | Active Development |
+| **Next Milestone** | v2.1 |
 
-## Highlights
+### Roadmap
 
-- Live health monitoring — CPU, RAM, disk, network, temperature, uptime, disk I/O, processes
-- Docker management — containers, images, volumes, networks; start/stop/restart, stream logs
-- Interactive terminal — real PTY sessions from your phone
-- File browser — navigate, upload, copy, search, and manage files on the server
-- Alerts — threshold-based with history and acknowledgement
-- Performance profiling — pprof endpoints for CPU and memory
-- Security — TLS 1.3, certificate pinning, short-lived tokens, biometric lock
-- Multiple servers, one app
-- Zero cloud — every byte travels only between your phone and your own servers
+| Version | Status |
+|---------|--------|
+| ✅ v2.0 | Core Platform (Stable) |
+| 🚧 v2.1 | Monitoring & UI/UX Overhaul |
+| 📅 v2.2 | Dockerized Agent & Simplified Deployment |
+| 💡 v3.0 | AI Management & Automation |
 
-## Quickstart
+---
 
-### 1. Run the agent
+## Introduction
 
-**Prerequisites:** Go >= 1.25 on your server ([install Go](https://go.dev/dl/)).
+qwe1 is a modern self-hosted server management platform focused on Docker, homelabs, Linux servers, and remote infrastructure with a clean mobile-first experience. It pairs a lightweight Go agent on each server with a Flutter mobile app, giving you direct control over your hardware — no cloud, no accounts, no vendor in between.
 
-Clone and run in one command:
+## Features
 
-```bash
-git clone https://github.com/Eapechan/qwe1.git
-cd qwe1
-./run.sh
-```
+| Feature | Status |
+|---------|--------|
+| Server Pairing | ✅ Stable |
+| Dashboard | ✅ Stable |
+| Live Server Metrics | ✅ Stable |
+| Docker Detection | ✅ Stable |
+| Container Discovery | ✅ Stable |
+| Container Health | ✅ Stable |
+| Per-Container Metrics | 🚧 In Progress |
+| Container Details | 🚧 Partial |
+| Container Actions | 🚧 Partial |
+| Container Logs | 🚧 Partial |
+| Live Graphs | 🚧 In Progress |
+| Terminal Access | 🚧 Partial |
+| File Manager | 🚧 Partial |
+| Alerts | 🚧 In Progress |
+| Authentication | 🚧 Partial |
+| Settings | 🚧 Partial |
+| Multi-Server | 📅 Planned |
+| AI Assistant | 💡 Future |
+| Backup Automation | 💡 Future |
 
-`run.sh` does everything — pulls latest code, builds the agent, generates a
-1-hour reusable enrollment token + QR code, and starts the agent in the
-background.
+## Current Focus
 
-The QR code is saved to `enroll-qr.png` and printed as ASCII in the terminal.
+The v2.1 milestone is focused on completing the monitoring experience and polishing the UI. Current work includes:
 
-Or via Docker:
+- Live per-container metrics
+- Terminal improvements
+- File manager enhancements
+- Container statistics
+- Alerts
+- UI polish and animations
+- Performance improvements
 
-```sh
-docker run -d --name qwe1-agent --restart unless-stopped \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -p 9443:9443 qwe1/agent
-```
+## Design Vision
 
-### 2. Scan the QR with the app
+qwe1 aims to build a premium, animated, modern server management experience — not a traditional dashboard. The UI draws inspiration from:
 
-Open the qwe1 app → Add Server → **Scan QR Code** → scan the QR from the
-terminal or `enroll-qr.png`. The token is valid for **1 hour** and can be used
-by multiple devices. After 1 hour, run `./run.sh token` again.
+- **Netflix** — smooth animations and visual hierarchy
+- **Plex** — clean, content-focused layout
+- **NZB360** — mobile-first navigation patterns
+- **Arc Browser** — minimal, purposeful design
+- **Nothing OS** — bold typography and subtle depth
+- **Apple Human Interface Guidelines** — consistency, clarity, and deference
 
-### 3. Install the app
-
-Build the APK or install from releases, then scan the QR code.
-
-See [GETTING_STARTED.md](GETTING_STARTED.md) for the full step-by-step guide.
-
-For a production deployment with TLS certs + systemd, follow the manual steps in
-[GETTING_STARTED.md](GETTING_STARTED.md). A commented config template lives at
-[`config.example.yaml`](config.example.yaml).
+The goal is to make managing servers feel effortless and enjoyable on any screen size.
 
 ## Architecture
 
 ```
-Flutter App (phone) <-- HTTP/WebSocket --> Go Agent (your server) --> Docker API
+Flutter App
+    ↓
+Backend API
+    ↓
+Local Agent
+    ↓
+Docker Engine / Linux System
+    ↓
+Containers • Files • Metrics
 ```
 
-| Component | Stack | Location |
-|-----------|-------|----------|
-| Mobile app | Flutter, Riverpod, Material 3 | `app/` |
-| Server agent | Go, net/http, WebSocket | `agent/` |
-
-### Backend Architecture
-
-The agent is a single static Go binary that runs on each user's Linux server. It exposes a secure REST API over HTTPS (TLS 1.3) and a WebSocket endpoint for real-time streams.
+The agent is a single static Go binary that runs on each Linux server. It exposes a secure REST API over HTTPS (TLS 1.3) and a WebSocket endpoint for real-time streams.
 
 ```
 agent/
@@ -99,35 +112,23 @@ agent/
 │   │   ├── types.go          # Shared API type aliases
 │   │   ├── ws.go             # WebSocket hub, client management
 │   │   └── server_test.go    # Integration tests
-│   ├── auth/                 # Token signing, validation, device store
-│   ├── config/               # YAML config loader with defaults
-│   ├── host/                 # Host metrics collector (CPU, RAM, disk, network, temp)
-│   ├── docker/               # Docker Engine API wrapper
-│   ├── terminal/             # PTY session manager
-│   ├── files/                # Allow-listed filesystem operations
-│   ├── alerts/               # Threshold evaluation engine
-│   ├── ratelimit/            # Token-bucket rate limiter
-│   ├── audit/                # Bounded ring-buffer audit log
-│   └── certs/                # Self-signed TLS certificate generation
+│   ├── auth/                  # Token signing, validation, device store
+│   ├── config/                # YAML config loader with defaults
+│   ├── host/                   # Host metrics collector (CPU, RAM, disk, network, temp)
+│   ├── docker/                # Docker Engine API wrapper
+│   ├── terminal/              # PTY session manager
+│   ├── files/                 # Allow-listed filesystem operations
+│   ├── alerts/                # Threshold evaluation engine
+│   ├── ratelimit/             # Token-bucket rate limiter
+│   ├── audit/                 # Bounded ring-buffer audit log
+│   └── certs/                 # Self-signed TLS certificate generation
 ```
 
-### Backend Features
+## Screenshots
 
-| Feature | Status | Details |
-|---------|--------|---------|
-| Authentication (enroll/refresh/revoke) | Working | HMAC-SHA256 tokens, refresh rotation, device management |
-| Host metrics | Working | CPU, RAM, swap, disk, network, temperature, uptime, load, cache, buffers, disk I/O, kernel, arch, OS, boot time, users, processes |
-| Docker management | Working | Containers, images, volumes, networks — list, inspect, lifecycle, logs. Retries in the background if the daemon is slow to start; capability flips to `true` automatically |
-| File management | Working | List, read, write, upload, mkdir, rename, delete, copy, search, favorites |
-| Terminal (PTY) | Working | Create, kill, resize sessions |
-| Alerts engine | Working | Threshold evaluation with debounce and deduplication |
-| Real-time updates | Working | WebSocket hub with multiplexed channels; app falls back to 5s HTTP polling of `/metrics/latest` if the socket is unavailable |
-| Audit logging | Working | Bounded ring buffer of privileged actions |
-| Rate limiting | Working | Per-IP and per-token token-bucket limiter |
-| TLS | Working | TLS 1.3, self-signed ECDSA P-256 cert generation |
-| Performance profiling | Working | pprof endpoints for CPU/heap/goroutine profiles |
+🚧 Updated screenshots and UI previews will be added after the v2.1 redesign.
 
-### API Endpoints
+## API Endpoints
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
@@ -181,11 +182,76 @@ agent/
 
 See the [API reference](https://github.com/Eapechan/qwe1/blob/v1/API_REFERENCE.md) on the `v1` branch for full request/response schemas.
 
+## Quickstart
+
+### 1. Run the agent
+
+**Prerequisites:** Go >= 1.25 on your server ([install Go](https://go.dev/dl/)).
+
+Clone and run in one command:
+
+```bash
+git clone https://github.com/Eapechan/qwe1.git
+cd qwe1
+./run.sh
+```
+
+`run.sh` does everything — pulls latest code, builds the agent, generates a
+1-hour reusable enrollment token + QR code, and starts the agent in the
+background.
+
+The QR code is saved to `enroll-qr.png` and printed as ASCII in the terminal.
+
+Or via Docker:
+
+```sh
+docker run -d --name qwe1-agent --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 9443:9443 qwe1/agent
+```
+
+### 2. Scan the QR with the app
+
+Open the qwe1 app → Add Server → **Scan QR Code** → scan the QR from the
+terminal or `enroll-qr.png`. The token is valid for **1 hour** and can be used
+by multiple devices. After 1 hour, run `./run.sh token` again.
+
+### 3. Install the app
+
+Build the APK or install from releases, then scan the QR code.
+
+See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full step-by-step guide.
+
+For a production deployment with TLS certs + systemd, follow the manual steps in
+[GETTING_STARTED.md](docs/GETTING_STARTED.md). A commented config template lives at
+[`config.example.yaml`](config.example.yaml).
+
+## Planned Features
+
+The following features are planned but not yet implemented:
+
+- Multi-server management
+- Live container graphs
+- Rich notifications
+- AI diagnostics
+- Docker Compose management
+- Backup scheduling
+- Plugin system
+
+## Version History
+
+| Version | Status | Focus |
+|---------|--------|-------|
+| v2.0 | Stable | Core platform |
+| v2.1 | In Progress | Monitoring & UI overhaul |
+| v2.2 | Planned | Dockerized agent |
+| v3.0 | Planned | AI management |
+
 ## Documentation
 
 | Doc | What it answers |
 |-----|-----------------|
-| [Getting Started](GETTING_STARTED.md) | How to run everything end-to-end |
+| [Getting Started](docs/GETTING_STARTED.md) | How to run everything end-to-end |
 | [Security](SECURITY.md) | Security policy and responsible disclosure |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 | [Code of Conduct](CODE_OF_CONDUCT.md) | Community standards |
