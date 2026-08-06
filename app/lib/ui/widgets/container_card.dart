@@ -7,7 +7,7 @@ import 'package:qwe1/ui/widgets/pulse_indicator.dart';
 import 'package:qwe1/ui/widgets/sparkline.dart';
 import 'package:qwe1/core/utils/units.dart';
 
-class ContainerCard extends StatelessWidget {
+class ContainerCard extends StatefulWidget {
   const ContainerCard({
     super.key,
     required this.container,
@@ -24,14 +24,78 @@ class ContainerCard extends StatelessWidget {
   final VoidCallback? onRestart;
 
   @override
+  State<ContainerCard> createState() => _ContainerCardState();
+}
+
+class _ContainerCardState extends State<ContainerCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _breathController;
+
+  @override
+  void initState() {
+    super.initState();
+    _breathController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    );
+    if (widget.container.state.toLowerCase() == 'running') {
+      _breathController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ContainerCard old) {
+    super.didUpdateWidget(old);
+    if (widget.container.state.toLowerCase() == 'running' &&
+        !_breathController.isAnimating) {
+      _breathController.repeat(reverse: true);
+    } else if (widget.container.state.toLowerCase() != 'running' &&
+        _breathController.isAnimating) {
+      _breathController.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _breathController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isRunning = container.state.toLowerCase() == 'running';
+    final isRunning = widget.container.state.toLowerCase() == 'running';
     final color = isRunning
         ? context.statusColor('healthy')
         : context.statusColor('offline');
 
+    return AnimatedBuilder(
+      animation: _breathController,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: isRunning
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(
+                        0.06 + _breathController.value * 0.04,
+                      ),
+                      blurRadius: 20 + _breathController.value * 10,
+                      spreadRadius: _breathController.value * 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: child,
+        );
+      },
+      child: _buildCardContent(context, isRunning, color),
+    );
+  }
+
+  Widget _buildCardContent(BuildContext context, bool isRunning, Color color) {
     return AnimatedCard(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -58,7 +122,9 @@ class ContainerCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    isRunning ? Icons.circle_rounded : Icons.pause_circle_rounded,
+                    isRunning
+                        ? Icons.circle_rounded
+                        : Icons.pause_circle_rounded,
                     color: color,
                     size: 20,
                   ),
@@ -69,16 +135,16 @@ class ContainerCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        container.name.isNotEmpty
-                            ? container.name
-                            : container.id.substring(0, 12),
+                        widget.container.name.isNotEmpty
+                            ? widget.container.name
+                            : widget.container.id.substring(0, 12),
                         style: AppTypography.headingSmall(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        container.image,
+                        widget.container.image,
                         style: AppTypography.bodySmall(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -88,7 +154,7 @@ class ContainerCard extends StatelessWidget {
                 ),
                 PopupMenuButton<String>(
                   itemBuilder: (context) => [
-                    if (!isRunning && onStart != null)
+                    if (!isRunning && widget.onStart != null)
                       const PopupMenuItem(
                         value: 'start',
                         child: Row(
@@ -99,7 +165,7 @@ class ContainerCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (isRunning && onStop != null)
+                    if (isRunning && widget.onStop != null)
                       const PopupMenuItem(
                         value: 'stop',
                         child: Row(
@@ -110,7 +176,7 @@ class ContainerCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (isRunning && onRestart != null)
+                    if (isRunning && widget.onRestart != null)
                       const PopupMenuItem(
                         value: 'restart',
                         child: Row(
@@ -125,13 +191,13 @@ class ContainerCard extends StatelessWidget {
                   onSelected: (value) {
                     switch (value) {
                       case 'start':
-                        onStart?.call();
+                        widget.onStart?.call();
                         break;
                       case 'stop':
-                        onStop?.call();
+                        widget.onStop?.call();
                         break;
                       case 'restart':
-                        onRestart?.call();
+                        widget.onRestart?.call();
                         break;
                     }
                   },
@@ -150,19 +216,19 @@ class ContainerCard extends StatelessWidget {
                   _buildMetricChip(
                     context,
                     Icons.speed_rounded,
-                    Units.cpu(container.cpuPercent),
+                    Units.cpu(widget.container.cpuPercent),
                     color: color,
                   ),
                   const SizedBox(width: 6),
                   _buildMetricChip(
                     context,
                     Icons.memory_rounded,
-                    Units.memory(container.memoryBytes),
+                    Units.memory(widget.container.memoryBytes),
                     color: color,
                   ),
                   const SizedBox(width: 6),
-                  if (container.health.isNotEmpty)
-                    _buildHealthBadge(context, container.health),
+                  if (widget.container.health.isNotEmpty)
+                    _buildHealthBadge(context, widget.container.health),
                   const Spacer(),
                   Sparkline(
                     data: _generateDummyData(),

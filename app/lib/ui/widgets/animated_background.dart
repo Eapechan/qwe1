@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 
 class AnimatedBackground extends StatelessWidget {
@@ -5,6 +6,7 @@ class AnimatedBackground extends StatelessWidget {
   final Gradient? gradient;
   final double gridOpacity;
   final double glowOpacity;
+  final Color? ambientColor;
 
   const AnimatedBackground({
     super.key,
@@ -12,11 +14,13 @@ class AnimatedBackground extends StatelessWidget {
     this.gradient,
     this.gridOpacity = 0.03,
     this.glowOpacity = 0.04,
+    this.ambientColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primary = ambientColor ?? theme.colorScheme.primary;
     final defaultGradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -35,12 +39,26 @@ class AnimatedBackground extends StatelessWidget {
         children: [
           child,
           Positioned.fill(
+            child: _buildNoiseTexture(theme),
+          ),
+          Positioned.fill(
             child: _buildGrid(theme),
           ),
           Positioned.fill(
-            child: _buildGlow(theme),
+            child: _buildGlow(theme, primary),
+          ),
+          Positioned.fill(
+            child: _buildSecondaryGlow(theme),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoiseTexture(ThemeData theme) {
+    return CustomPaint(
+      painter: _NoisePainter(
+        color: theme.colorScheme.onSurface.withOpacity(0.015),
       ),
     );
   }
@@ -55,18 +73,41 @@ class AnimatedBackground extends StatelessWidget {
     );
   }
 
-  Widget _buildGlow(ThemeData theme) {
+  Widget _buildGlow(ThemeData theme, Color primary) {
     return IgnorePointer(
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
-          width: 400,
-          height: 400,
+          width: 500,
+          height: 500,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(
               colors: [
-                theme.colorScheme.primary.withOpacity(glowOpacity),
+                primary.withOpacity(glowOpacity),
+                primary.withOpacity(glowOpacity * 0.3),
+                Colors.transparent,
+              ],
+              stops: const [0, 0.5, 1],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecondaryGlow(ThemeData theme) {
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.bottomRight,
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                theme.colorScheme.secondary.withOpacity(0.02),
                 Colors.transparent,
               ],
               stops: const [0, 1],
@@ -76,6 +117,32 @@ class AnimatedBackground extends StatelessWidget {
       ),
     );
   }
+}
+
+class _NoisePainter extends CustomPainter {
+  _NoisePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final random = Random(42);
+
+    for (double x = 0; x < size.width; x += 3) {
+      for (double y = 0; y < size.height; y += 3) {
+        if (random.nextDouble() > 0.5) {
+          canvas.drawRect(
+            Rect.fromLTWH(x, y, 1.5, 1.5),
+            paint,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _NoisePainter old) => old.color != color;
 }
 
 class _GridPainter extends CustomPainter {

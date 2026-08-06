@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HealthRing extends StatefulWidget {
   final double score;
@@ -81,14 +82,12 @@ class _HealthRingState extends State<HealthRing>
                 Center(
                   child: Text(
                     '${(widget.score).round()}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .displayMedium
-                        ?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: color,
-                          letterSpacing: -1,
-                        ),
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: widget.size * 0.22,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      letterSpacing: -1,
+                    ),
                   ),
                 ),
               ],

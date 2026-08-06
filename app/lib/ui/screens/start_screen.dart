@@ -6,6 +6,7 @@ import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/animated_background.dart';
 import 'package:qwe1/ui/widgets/health_ring.dart';
+import 'package:qwe1/ui/widgets/startup_animation.dart';
 import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class StartScreen extends ConsumerStatefulWidget {
@@ -59,7 +60,19 @@ class _StartScreenState extends ConsumerState<StartScreen>
     Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) {
         ref.read(serverListProvider.notifier).loadServers();
-        context.go('/');
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const StartupAnimation(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
       }
     });
   }
