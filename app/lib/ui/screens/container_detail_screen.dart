@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/docker/container_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
-import 'package:qwe1/ui/widgets/status_indicator.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
+import 'package:qwe1/ui/widgets/pulse_indicator.dart';
 
 class ContainerDetailScreen extends ConsumerWidget {
   const ContainerDetailScreen({
@@ -80,7 +81,7 @@ class ContainerDetailScreen extends ConsumerWidget {
         data: (container) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildStatusCard(context, container),
+            _buildHeroCard(context, container),
             const SizedBox(height: 16),
             _buildActionButtons(context, ref),
             const SizedBox(height: 16),
@@ -93,111 +94,140 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusCard(BuildContext context, container) {
+  Widget _buildHeroCard(BuildContext context, container) {
+    final isRunning = container.state.toLowerCase() == 'running';
     final stateColor = _getStateColor(context, container.state);
 
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            colors: [
-              stateColor.withOpacity(0.06),
-              stateColor.withOpacity(0.02),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            stateColor.withOpacity(0.08),
+            stateColor.withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                StatusIndicator(
-                  status: container.state.toLowerCase() == 'running' ? 'online' : 'offline',
-                  size: 10,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: stateColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PulseIndicator(
+                status: isRunning ? 'online' : 'offline',
+                size: 14,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      container.name.isNotEmpty ? container.name : container.id.substring(0, 12),
+                      style: AppTypography.headingMedium(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      container.image,
+                      style: AppTypography.bodySmall(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: stateColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  container.state.toUpperCase(),
+                  style: TextStyle(
+                    color: stateColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (container.ports.isNotEmpty) ...[
+            Text(
+              'Ports',
+              style: AppTypography.labelMedium(context),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: container.ports.map((p) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: stateColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: context.surfaceVariant.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    container.state.toUpperCase(),
-                    style: TextStyle(
-                      color: stateColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
+                    '${p.host}:${p.container}',
+                    style: AppTypography.labelSmall(context).copyWith(
+                      fontFamily: 'monospace',
                     ),
                   ),
-                ),
-                if (container.health.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getHealthColor(context, container.health).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      container.health.toUpperCase(),
-                      style: TextStyle(
-                        color: _getHealthColor(context, container.health),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+                );
+              }).toList(),
             ),
-            const SizedBox(height: 16),
-            _buildInfoRow(context, 'Image', container.image),
-            if (container.status.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _buildInfoRow(context, 'Status', container.status),
-            ],
-            if (container.ports.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _buildInfoRow(context, 'Ports', container.ports.map((p) => '${p.host}:${p.container}').join(', ')),
-            ],
           ],
-        ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildDetailItem(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
+              const SizedBox(width: 12),
+              _buildDetailItem(context, 'Memory', _formatBytes(container.memoryBytes)),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.onSurfaceMuted,
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
+  Widget _buildDetailItem(BuildContext context, String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.surfaceVariant.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(16),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTypography.labelSmall(context),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTypography.numberSmall(context).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -212,6 +242,9 @@ class ContainerDetailScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: context.success,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
@@ -224,6 +257,9 @@ class ContainerDetailScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: context.danger,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
@@ -233,6 +269,11 @@ class ContainerDetailScreen extends ConsumerWidget {
             onPressed: () {},
             icon: const Icon(Icons.restart_alt_rounded, size: 20),
             label: const Text('Restart'),
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
           ),
         ),
       ],
@@ -240,52 +281,53 @@ class ContainerDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildDetailsSection(BuildContext context, container) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Details',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            _buildDetailRow(context, 'ID', container.id.substring(0, 12)),
-            _buildDetailRow(context, 'Name', container.name.isNotEmpty ? container.name : '-'),
-            _buildDetailRow(context, 'Image', container.image),
-            _buildDetailRow(context, 'Memory', _formatBytes(container.memoryBytes)),
-            _buildDetailRow(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: context.border.withOpacity(0.5),
+          width: 1,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Details',
+            style: AppTypography.headingSmall(context),
+          ),
+          const SizedBox(height: 12),
+          _buildDetailRow(context, 'ID', container.id.substring(0, 12)),
+          _buildDetailRow(context, 'Name', container.name.isNotEmpty ? container.name : '-'),
+          _buildDetailRow(context, 'Image', container.image),
+          _buildDetailRow(context, 'Memory', _formatBytes(container.memoryBytes)),
+          _buildDetailRow(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
+        ],
       ),
     );
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 80,
+            width: 70,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.onSurfaceMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: AppTypography.labelMedium(context),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: AppTypography.bodyMedium(context).copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -306,17 +348,6 @@ class ContainerDetailScreen extends ConsumerWidget {
         return context.warning;
       default:
         return context.onSurfaceMuted;
-    }
-  }
-
-  Color _getHealthColor(BuildContext context, String health) {
-    switch (health.toLowerCase()) {
-      case 'healthy':
-        return context.success;
-      case 'unhealthy':
-        return context.danger;
-      default:
-        return context.warning;
     }
   }
 

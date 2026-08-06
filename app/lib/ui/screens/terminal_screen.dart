@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/terminal/terminal_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:qwe1/ui/widgets/terminal_view.dart';
 
 class TerminalScreen extends ConsumerStatefulWidget {
@@ -20,8 +21,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF000000),
       appBar: AppBar(
         title: const Text('Terminal'),
+        backgroundColor: const Color(0xFF000000),
+        foregroundColor: Colors.white,
         actions: [
           if (_isConnected)
             IconButton(
@@ -30,7 +34,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               tooltip: 'Copy',
             ),
           IconButton(
-            icon: Icon(_isConnected ? Icons.stop_circle_rounded : Icons.play_circle_rounded),
+            icon: Icon(
+              _isConnected ? Icons.stop_circle_rounded : Icons.play_circle_rounded,
+            ),
             onPressed: _isConnected ? _disconnect : _connect,
             tooltip: _isConnected ? 'Disconnect' : 'Connect',
           ),
@@ -38,14 +44,14 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       ),
       body: Column(
         children: [
-          // Connection status
+          // Connection status bar
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: _isConnected
                   ? context.success.withOpacity(0.1)
-                  : Theme.of(context).colorScheme.surfaceVariant,
+                  : context.surfaceVariant,
               border: Border(
                 bottom: BorderSide(
                   color: _isConnected
@@ -61,26 +67,24 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isConnected
-                        ? context.success
-                        : context.onSurfaceMuted,
+                    color: _isConnected ? context.success : context.onSurfaceMuted,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   _isConnected ? 'Connected' : 'Disconnected',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: AppTypography.labelMedium(context).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (_sessionId != null) ...[
                   const SizedBox(width: 8),
                   Text(
                     _sessionId!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.onSurfaceMuted,
-                          fontFamily: 'monospace',
-                        ),
+                    style: AppTypography.labelSmall(context).copyWith(
+                      color: context.onSurfaceMuted,
+                      fontFamily: 'monospace',
+                    ),
                   ),
                 ],
               ],
@@ -103,28 +107,28 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                           width: 88,
                           height: 88,
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                            color: context.primary.withOpacity(0.08),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.terminal_rounded,
                             size: 40,
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                            color: context.primary.withOpacity(0.6),
                           ),
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'No Active Session',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          style: AppTypography.displaySmall(context).copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Connect to start a terminal session',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: context.onSurfaceMuted,
-                              ),
+                          style: AppTypography.bodyMedium(context).copyWith(
+                            color: context.onSurfaceMuted,
+                          ),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
@@ -142,7 +146,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: context.surface,
                 border: Border(
                   top: BorderSide(color: context.border),
                 ),
@@ -164,21 +168,20 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   }
 
   Widget _buildQuickKey(String label, VoidCallback onPressed) {
-    return InkWell(
+    return TouchFeedback(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
+          color: context.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
-              ),
+          style: AppTypography.labelSmall(context).copyWith(
+            fontWeight: FontWeight.w600,
+            fontFamily: 'monospace',
+          ),
         ),
       ),
     );

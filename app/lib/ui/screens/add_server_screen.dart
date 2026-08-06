@@ -169,7 +169,7 @@ class _AddServerScreenState extends ConsumerState<AddServerScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Run "./run.sh" or "qwe1-agent --enroll" on your server to get a QR code or token.',
+                            'Run "tools/qwe1.sh enroll" on your server to get a QR code or token.',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: context.onSurfaceMuted,
                                 ),

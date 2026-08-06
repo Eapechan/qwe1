@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart' as material;
-import 'package:qwe1/domain/entities/container.dart' as domain;
-import 'package:qwe1/ui/widgets/status_indicator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:qwe1/domain/entities/container.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
+import 'package:qwe1/ui/widgets/pulse_indicator.dart';
+import 'package:qwe1/ui/widgets/sparkline.dart';
+import 'package:qwe1/core/utils/units.dart';
 
-class ContainerCard extends material.StatelessWidget {
+class ContainerCard extends StatelessWidget {
   const ContainerCard({
     super.key,
     required this.container,
@@ -12,195 +17,222 @@ class ContainerCard extends material.StatelessWidget {
     this.onRestart,
   });
 
-  final domain.Container container;
-  final material.VoidCallback onTap;
-  final material.VoidCallback? onStart;
-  final material.VoidCallback? onStop;
-  final material.VoidCallback? onRestart;
+  final Container container;
+  final VoidCallback onTap;
+  final VoidCallback? onStart;
+  final VoidCallback? onStop;
+  final VoidCallback? onRestart;
 
   @override
-  material.Widget build(material.BuildContext context) {
+  Widget build(BuildContext context) {
     final isRunning = container.state.toLowerCase() == 'running';
+    final color = isRunning
+        ? context.statusColor('healthy')
+        : context.statusColor('offline');
 
-    return material.Card(
-      child: material.InkWell(
-        onTap: onTap,
-        borderRadius: material.BorderRadius.circular(20),
-        child: material.Padding(
-          padding: const material.EdgeInsets.all(14),
-          child: material.Column(
-            crossAxisAlignment: material.CrossAxisAlignment.start,
-            children: [
-              material.Row(
-                children: [
-                  StatusIndicator(
-                    status: isRunning ? 'online' : 'offline',
-                    size: 10,
+    return AnimatedCard(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: [
+              context.surface,
+              context.surfaceVariant.withOpacity(0.3),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const material.SizedBox(width: 12),
-                  material.Expanded(
-                    child: material.Column(
-                      crossAxisAlignment: material.CrossAxisAlignment.start,
-                      children: [
-                        material.Text(
-                          container.name.isNotEmpty ? container.name : container.id.substring(0, 12),
-                          style: material.Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: material.FontWeight.w600,
-                              ),
-                          maxLines: 1,
-                          overflow: material.TextOverflow.ellipsis,
-                        ),
-                        const material.SizedBox(height: 2),
-                        material.Text(
-                          container.image,
-                          style: material.Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: material.Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                          maxLines: 1,
-                          overflow: material.TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                  child: Icon(
+                    isRunning ? Icons.circle_rounded : Icons.pause_circle_rounded,
+                    color: color,
+                    size: 20,
                   ),
-                  material.PopupMenuButton<String>(
-                    itemBuilder: (context) => [
-                      if (!isRunning && onStart != null)
-                        const material.PopupMenuItem(
-                          value: 'start',
-                          child: material.Row(
-                            children: [
-                              material.Icon(material.Icons.play_arrow_rounded, size: 20),
-                              material.SizedBox(width: 8),
-                              material.Text('Start'),
-                            ],
-                          ),
-                        ),
-                      if (isRunning && onStop != null)
-                        const material.PopupMenuItem(
-                          value: 'stop',
-                          child: material.Row(
-                            children: [
-                              material.Icon(material.Icons.stop_rounded, size: 20),
-                              material.SizedBox(width: 8),
-                              material.Text('Stop'),
-                            ],
-                          ),
-                        ),
-                      if (isRunning && onRestart != null)
-                        const material.PopupMenuItem(
-                          value: 'restart',
-                          child: material.Row(
-                            children: [
-                              material.Icon(material.Icons.restart_alt_rounded, size: 20),
-                              material.SizedBox(width: 8),
-                              material.Text('Restart'),
-                            ],
-                          ),
-                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        container.name.isNotEmpty
+                            ? container.name
+                            : container.id.substring(0, 12),
+                        style: AppTypography.headingSmall(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        container.image,
+                        style: AppTypography.bodySmall(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'start':
-                          onStart?.call();
-                          break;
-                        case 'stop':
-                          onStop?.call();
-                          break;
-                        case 'restart':
-                          onRestart?.call();
-                          break;
-                      }
-                    },
-                    icon: material.Icon(
-                      material.Icons.more_vert_rounded,
-                      color: material.Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  itemBuilder: (context) => [
+                    if (!isRunning && onStart != null)
+                      const PopupMenuItem(
+                        value: 'start',
+                        child: Row(
+                          children: [
+                            Icon(Icons.play_arrow_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text('Start'),
+                          ],
+                        ),
+                      ),
+                    if (isRunning && onStop != null)
+                      const PopupMenuItem(
+                        value: 'stop',
+                        child: Row(
+                          children: [
+                            Icon(Icons.stop_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text('Stop'),
+                          ],
+                        ),
+                      ),
+                    if (isRunning && onRestart != null)
+                      const PopupMenuItem(
+                        value: 'restart',
+                        child: Row(
+                          children: [
+                            Icon(Icons.restart_alt_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text('Restart'),
+                          ],
+                        ),
+                      ),
+                  ],
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'start':
+                        onStart?.call();
+                        break;
+                      case 'stop':
+                        onStop?.call();
+                        break;
+                      case 'restart':
+                        onRestart?.call();
+                        break;
+                    }
+                  },
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                    color: context.onSurfaceMuted,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isRunning) ...[
+              Row(
+                children: [
+                  _buildMetricChip(
+                    context,
+                    Icons.speed_rounded,
+                    Units.cpu(container.cpuPercent),
+                    color: color,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildMetricChip(
+                    context,
+                    Icons.memory_rounded,
+                    Units.memory(container.memoryBytes),
+                    color: color,
+                  ),
+                  const SizedBox(width: 6),
+                  if (container.health.isNotEmpty)
+                    _buildHealthBadge(context, container.health),
+                  const Spacer(),
+                  Sparkline(
+                    data: _generateDummyData(),
+                    width: 48,
+                    height: 24,
+                    color: color,
+                    strokeWidth: 1.5,
                   ),
                 ],
               ),
-              if (isRunning) ...[
-                const material.SizedBox(height: 12),
-                material.Row(
-                  children: [
-                    _buildMetricBadge(
-                      context,
-                      material.Icons.speed_rounded,
-                      '${container.cpuPercent.toStringAsFixed(1)}%',
-                    ),
-                    const material.SizedBox(width: 8),
-                    _buildMetricBadge(
-                      context,
-                      material.Icons.memory_rounded,
-                      _formatBytes(container.memoryBytes),
-                    ),
-                    if (container.health.isNotEmpty) ...[
-                      const material.SizedBox(width: 8),
-                      _buildHealthBadge(context, container.health),
-                    ],
-                  ],
-                ),
-              ],
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  material.Widget _buildMetricBadge(material.BuildContext context, material.IconData icon, String value) {
-    return material.Container(
-      padding: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: material.BoxDecoration(
-        color: material.Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
-        borderRadius: material.BorderRadius.circular(8),
+  Widget _buildMetricChip(
+    BuildContext context,
+    IconData icon,
+    String value, {
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: context.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: material.Row(
-        mainAxisSize: material.MainAxisSize.min,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          material.Icon(icon, size: 12, color: material.Theme.of(context).colorScheme.onSurfaceVariant),
-          const material.SizedBox(width: 4),
-          material.Text(
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
             value,
-            style: material.Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: material.FontWeight.w600,
-                ),
+            style: AppTypography.labelSmall(context).copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  material.Widget _buildHealthBadge(material.BuildContext context, String health) {
-    final color = health.toLowerCase() == 'healthy'
-        ? material.Colors.green
+  Widget _buildHealthBadge(BuildContext context, String health) {
+    final healthColor = health.toLowerCase() == 'healthy'
+        ? context.success
         : health.toLowerCase() == 'unhealthy'
-            ? material.Colors.red
-            : material.Colors.orange;
+            ? context.danger
+            : context.warning;
 
-    return material.Container(
-      padding: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: material.BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: material.BorderRadius.circular(8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: healthColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: material.Text(
+      child: Text(
         health.toUpperCase(),
-        style: material.Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: material.FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
+        style: AppTypography.labelSmall(context).copyWith(
+          color: healthColor,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  List<double> _generateDummyData() {
+    return List.generate(12, (i) => 30 + (i * 5).toDouble() + (i % 3 * 10));
   }
 }

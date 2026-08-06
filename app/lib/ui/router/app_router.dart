@@ -12,11 +12,27 @@ import 'package:qwe1/ui/screens/file_browser_screen.dart';
 import 'package:qwe1/ui/screens/alerts_screen.dart';
 import 'package:qwe1/ui/screens/settings_screen.dart';
 import 'package:qwe1/ui/screens/onboarding_screen.dart';
+import 'package:qwe1/ui/screens/start_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/start',
     routes: [
+      GoRoute(
+        path: '/start',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const StartScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
+      ),
       GoRoute(
         path: '/',
         pageBuilder: (context, state) {
@@ -25,8 +41,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: const DashboardScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return child
-                .animate()
-                .fadeIn(duration: 200.ms, curve: Curves.easeOutCubic);
+                  .animate()
+                  .fadeIn(duration: 200.ms, curve: Curves.easeOutCubic);
             },
           );
         },

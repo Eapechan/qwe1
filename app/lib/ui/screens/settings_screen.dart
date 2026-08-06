@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/settings/settings_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -13,6 +14,7 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return Scaffold(
+      backgroundColor: context.background,
       appBar: AppBar(
         title: const Text('Settings'),
       ),
@@ -101,9 +103,9 @@ class SettingsScreen extends ConsumerWidget {
           Center(
             child: Text(
               'v1.0.0\nqwe1 Agent',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.onSurfaceMuted,
-                  ),
+              style: AppTypography.bodyMedium(context).copyWith(
+                color: context.onSurfaceMuted,
+              ),
               textAlign: TextAlign.center,
             ),
           ).animate().fadeIn(duration: 300.ms),
@@ -117,11 +119,11 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+        style: AppTypography.labelMedium(context).copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -133,17 +135,19 @@ class SettingsScreen extends ConsumerWidget {
     required String subtitle,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: context.onSurfaceMuted),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: context.onSurfaceMuted),
-      ),
-      trailing: onTap != null
-          ? Icon(Icons.chevron_right_rounded, color: context.onSurfaceMuted)
-          : null,
+    return TouchFeedback(
       onTap: onTap,
+      child: ListTile(
+        leading: Icon(icon, color: context.onSurfaceMuted),
+        title: Text(title),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: context.onSurfaceMuted),
+        ),
+        trailing: onTap != null
+            ? Icon(Icons.chevron_right_rounded, color: context.onSurfaceMuted)
+            : null,
+      ),
     );
   }
 
@@ -155,15 +159,18 @@ class SettingsScreen extends ConsumerWidget {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return SwitchListTile(
-      secondary: Icon(icon, color: context.onSurfaceMuted),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: context.onSurfaceMuted),
+    return TouchFeedback(
+      onTap: () => onChanged(!value),
+      child: SwitchListTile(
+        secondary: Icon(icon, color: context.onSurfaceMuted),
+        title: Text(title),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: context.onSurfaceMuted),
+        ),
+        value: value,
+        onChanged: onChanged,
       ),
-      value: value,
-      onChanged: onChanged,
     );
   }
 
@@ -186,9 +193,19 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           _buildThemeOption(context, ref, 'Light', ThemeMode.light, currentMode),
           _buildThemeOption(context, ref, 'Dark', ThemeMode.dark, currentMode),
-          _buildThemeOption(context, ref, 'System Default', ThemeMode.system, currentMode),
+          _buildThemeOption(
+            context,
+            ref,
+            'System Default',
+            ThemeMode.system,
+            currentMode,
+          ),
         ],
-      ).animate().scale(begin: const Offset(0.8, 1.1), end: const Offset(1, 1), duration: 150.ms),
+      ).animate().scale(
+            begin: const Offset(0.8, 1.1),
+            end: const Offset(1, 1),
+            duration: 150.ms,
+          ),
     );
   }
 
@@ -239,7 +256,11 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('Clear'),
           ),
         ],
-      ).animate().scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 150.ms),
+      ).animate().scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1, 1),
+            duration: 150.ms,
+          ),
     );
   }
 
@@ -255,7 +276,11 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('OK'),
           ),
         ],
-      ).animate().scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 150.ms),
+      ).animate().scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1, 1),
+            duration: 150.ms,
+          ),
     );
   }
 

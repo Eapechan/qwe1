@@ -5,57 +5,57 @@ class AppTheme {
   AppTheme._();
 
   static const lightColors = _ColorTokens(
-    background: Color(0xFFF8F9FA),
+    background: Color(0xFFF4F5F7),
     surface: Color(0xFFFFFFFF),
-    surfaceVariant: Color(0xFFF1F3F5),
-    surfaceContainerLow: Color(0xFFF1F3F5),
-    surfaceContainer: Color(0xFFF5F7FA),
-    surfaceContainerHighest: Color(0xFFF0F2F5),
+    surfaceVariant: Color(0xFFE8EAED),
+    surfaceContainerLow: Color(0xFFF0F2F5),
+    surfaceContainer: Color(0xFFF8F9FA),
+    surfaceContainerHighest: Color(0xFFEEF0F2),
     onSurface: Color(0xFF1A1D21),
     onSurfaceMuted: Color(0xFF6B7280),
     onSurfaceVariant: Color(0xFF6B7280),
-    primary: Color(0xFF2563EB),
+    primary: Color(0xFF06B6D4),
     onPrimary: Color(0xFFFFFFFF),
-    primaryLight: Color(0xFFDBEAFE),
-    secondary: Color(0xFF6D28D9),
+    primaryLight: Color(0xFFCFFAFE),
+    secondary: Color(0xFF7C3AED),
     onSecondary: Color(0xFFFFFFFF),
-    tertiary: Color(0xFF0284C7),
+    tertiary: Color(0xFF0891B2),
     onTertiary: Color(0xFFFFFFFF),
     success: Color(0xFF16A34A),
     warning: Color(0xFFF59E0B),
     danger: Color(0xFFEF4444),
-    info: Color(0xFF06B6D4),
+    info: Color(0xFF0891B2),
     border: Color(0xFFE5E7EB),
     shimmer: Color(0xFFE5E7EB),
-    gradientStart: Color(0xFF2563EB),
-    gradientEnd: Color(0xFF7C3AED),
+    gradientStart: Color(0xFF06B6D4),
+    gradientEnd: Color(0xFF0891B2),
   );
 
   static const darkColors = _ColorTokens(
-    background: Color(0xFF0F1117),
-    surface: Color(0xFF1A1D27),
-    surfaceVariant: Color(0xFF232733),
-    surfaceContainerLow: Color(0xFF1F242D),
-    surfaceContainer: Color(0xFF272E38),
-    surfaceContainerHighest: Color(0xFF2D3540),
+    background: Color(0xFF09090B),
+    surface: Color(0xFF111827),
+    surfaceVariant: Color(0xFF1A1F2E),
+    surfaceContainerLow: Color(0xFF151A24),
+    surfaceContainer: Color(0xFF1E2433),
+    surfaceContainerHighest: Color(0xFF2A3144),
     onSurface: Color(0xFFF1F3F5),
     onSurfaceMuted: Color(0xFF9CA3AF),
     onSurfaceVariant: Color(0xFF6B7280),
-    primary: Color(0xFF60A5FA),
-    onPrimary: Color(0xFF0F1117),
-    primaryLight: Color(0xFF1E3A5F),
-    secondary: Color(0xFFA855F7),
-    onSecondary: Color(0xFF0F1117),
-    tertiary: Color(0xFF38BDF8),
-    onTertiary: Color(0xFF0F1117),
-    success: Color(0xFF4ADE80),
-    warning: Color(0xFFFBBF24),
-    danger: Color(0xFFF87171),
-    info: Color(0xFF22D3EE),
+    primary: Color(0xFF06B6D4),
+    onPrimary: Color(0xFF09090B),
+    primaryLight: Color(0xFF0E4D5C),
+    secondary: Color(0xFF8B5CF6),
+    onSecondary: Color(0xFF09090B),
+    tertiary: Color(0xFF0891B2),
+    onTertiary: Color(0xFF09090B),
+    success: Color(0xFF22C55E),
+    warning: Color(0xFFF59E0B),
+    danger: Color(0xFFEF4444),
+    info: Color(0xFF06B6D4),
     border: Color(0xFF2D3140),
     shimmer: Color(0xFF2D3140),
-    gradientStart: Color(0xFF3B82F6),
-    gradientEnd: Color(0xFF8B5CF6),
+    gradientStart: Color(0xFF06B6D4),
+    gradientEnd: Color(0xFF0891B2),
   );
 
   static ThemeData get lightTheme => _buildTheme(lightColors, false);
@@ -85,8 +85,44 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: c.background,
       textTheme: GoogleFonts.interTextTheme().copyWith(
+        displayLarge: GoogleFonts.inter(
+          color: c.onSurface,
+          fontSize: 34,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        displayMedium: GoogleFonts.inter(
+          color: c.onSurface,
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.4,
+        ),
+        headlineMedium: GoogleFonts.inter(
+          color: c.onSurface,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
+        titleLarge: GoogleFonts.inter(
+          color: c.onSurface,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+        ),
         bodyLarge: GoogleFonts.inter(color: c.onSurface),
         bodyMedium: GoogleFonts.inter(color: c.onSurfaceMuted),
+        labelLarge: GoogleFonts.inter(
+          color: c.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        labelMedium: GoogleFonts.inter(
+          color: c.onSurfaceMuted,
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: GoogleFonts.inter(
+          color: c.onSurfaceMuted,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       fontFamily: GoogleFonts.inter().fontFamily,
       appBarTheme: AppBarTheme(
@@ -97,19 +133,19 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: GoogleFonts.inter(
           color: c.onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
         ),
       ),
       cardTheme: CardTheme(
         color: c.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: c.border, width: 1),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: c.border.withOpacity(0.5), width: 1),
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -119,7 +155,7 @@ class AppTheme {
           shadowColor: Colors.transparent,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
           textStyle: GoogleFonts.inter(
             fontSize: 16,
@@ -133,9 +169,9 @@ class AppTheme {
           foregroundColor: c.primary,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
-          side: BorderSide(color: c.primary, width: 1.5),
+          side: BorderSide(color: c.primary.withOpacity(0.3), width: 1.5),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -148,23 +184,23 @@ class AppTheme {
         filled: true,
         fillColor: c.surfaceVariant,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: c.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: c.danger, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintStyle: TextStyle(color: c.onSurfaceMuted.withOpacity(0.6)),
+        hintStyle: TextStyle(color: c.onSurfaceMuted.withOpacity(0.5)),
         labelStyle: TextStyle(color: c.onSurfaceMuted),
       ),
       chipTheme: ChipThemeData(
@@ -177,7 +213,7 @@ class AppTheme {
         side: BorderSide.none,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: c.surface,
+        backgroundColor: c.surface.withOpacity(0.85),
         selectedItemColor: c.primary,
         unselectedItemColor: c.onSurfaceMuted,
         elevation: 0,
@@ -188,23 +224,31 @@ class AppTheme {
         contentTextStyle: TextStyle(color: c.onSurface),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: c.border,
+        color: c.border.withOpacity(0.5),
         thickness: 1,
       ),
       dialogTheme: DialogTheme(
         backgroundColor: c.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: c.surface,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: c.primary,
+        foregroundColor: c.onPrimary,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
     );
@@ -295,9 +339,39 @@ extension AppColors on BuildContext {
   Color get gradientStart => _tokens.gradientStart;
   Color get gradientEnd => _tokens.gradientEnd;
 
+  Color get healthScoreColor(double score) {
+    if (score >= 75) return _tokens.success;
+    if (score >= 50) return _tokens.warning;
+    if (score > 0) return _tokens.danger;
+    return _tokens.onSurfaceMuted;
+  }
+
+  Color get statusColor(String status) {
+    final s = status.toLowerCase();
+    if (s == 'online' || s == 'connected' || s == 'running' || s == 'healthy') {
+      return _tokens.success;
+    }
+    if (s == 'offline' || s == 'disconnected' || s == 'exited' || s == 'stopped') {
+      return _tokens.danger;
+    }
+    if (s == 'degraded' || s == 'warning' || s == 'paused') {
+      return _tokens.warning;
+    }
+    return _tokens.onSurfaceMuted;
+  }
+
   LinearGradient get primaryGradient => LinearGradient(
         colors: [_tokens.gradientStart, _tokens.gradientEnd],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
+      );
+
+  LinearGradient get surfaceGradient => LinearGradient(
+        colors: [
+          _tokens.surface.withOpacity(0.9),
+          _tokens.surfaceVariant.withOpacity(0.5),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
       );
 }
