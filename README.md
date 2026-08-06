@@ -184,47 +184,39 @@ See the [API reference](https://github.com/Eapechan/qwe1/blob/v1/API_REFERENCE.m
 
 ## Quickstart
 
-### 1. Run the agent
+### 1. Install the app
+
+Build the APK from source or download the latest release, then install it on your device.
+
+### 2. Set up the agent
 
 **Prerequisites:** Go >= 1.25 on your server ([install Go](https://go.dev/dl/)).
 
-Clone and run in one command:
+Clone the repo and use the management script:
 
 ```bash
 git clone https://github.com/Eapechan/qwe1.git
 cd qwe1
-./run.sh
+tools/qwe1.sh dev
 ```
 
-`run.sh` does everything — pulls latest code, builds the agent, generates a
-1-hour reusable enrollment token + QR code, and starts the agent in the
-background.
+`tools/qwe1.sh dev` builds the agent, starts it, and runs a full verification suite.
 
-The QR code is saved to `enroll-qr.png` and printed as ASCII in the terminal.
+To generate the enrollment QR code:
 
-Or via Docker:
-
-```sh
-docker run -d --name qwe1-agent --restart unless-stopped \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -p 9443:9443 qwe1/agent
+```bash
+tools/qwe1.sh enroll
 ```
 
-### 2. Scan the QR with the app
+The QR code is saved to `enroll-qr.png` and printed as ASCII in the terminal. The token is valid for **1 hour** and can be reused across devices. After it expires, run `tools/qwe1.sh enroll` again.
 
-Open the qwe1 app → Add Server → **Scan QR Code** → scan the QR from the
-terminal or `enroll-qr.png`. The token is valid for **1 hour** and can be used
-by multiple devices. After 1 hour, run `./run.sh token` again.
+For a production deployment with TLS certs + systemd, follow the manual steps in [GETTING_STARTED.md](docs/GETTING_STARTED.md). A commented config template lives at [`config.example.yaml`](config.example.yaml).
 
-### 3. Install the app
+### 3. Pair the app
 
-Build the APK or install from releases, then scan the QR code.
+Open the qwe1 app → Add Server → **Scan QR Code** → scan the QR from the terminal or `enroll-qr.png`.
 
 See [GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full step-by-step guide.
-
-For a production deployment with TLS certs + systemd, follow the manual steps in
-[GETTING_STARTED.md](docs/GETTING_STARTED.md). A commented config template lives at
-[`config.example.yaml`](config.example.yaml).
 
 ## Planned Features
 
