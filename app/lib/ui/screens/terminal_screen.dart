@@ -4,6 +4,7 @@ import 'package:qwe1/state/terminal/terminal_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:qwe1/ui/widgets/terminal_view.dart';
+import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class TerminalScreen extends ConsumerStatefulWidget {
   const TerminalScreen({super.key, required this.serverId});

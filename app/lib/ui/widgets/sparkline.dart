@@ -32,10 +32,10 @@ class Sparkline extends StatelessWidget {
       );
     }
 
-    final min = data.reduce((a, b) => a < b ? a : b);
-    final max = data.reduce((a, b) => a > b ? a : b);
-    final range = max - min;
-    final safeRange = range == 0 ? 1 : range;
+    final double min = data.reduce((a, b) => a < b ? a : b);
+    final double max = data.reduce((a, b) => a > b ? a : b);
+    final double range = max - min;
+    final double safeRange = range == 0 ? 1 : range;
 
     return SizedBox(
       width: width,

@@ -162,7 +162,7 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
                               ? 'Docker is not available'
                               : 'Error: $error',
                           textAlign: TextAlign.center,
-                          style: AppTypography.titleLarge(context),
+                          style: AppTypography.displaySmall(context),
                         ),
                         const SizedBox(height: 8),
                         Text(

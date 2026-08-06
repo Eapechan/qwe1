@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 
 class AppTypography {
   AppTypography._();
@@ -47,14 +48,14 @@ class AppTypography {
       );
 
   static TextStyle bodyMedium(BuildContext context) => GoogleFonts.inter(
-        color: Theme.of(context).colorScheme.onSurfaceMuted,
+        color: context.onSurfaceMuted,
         fontSize: 13,
         fontWeight: FontWeight.w400,
         height: 1.4,
       );
 
   static TextStyle bodySmall(BuildContext context) => GoogleFonts.inter(
-        color: Theme.of(context).colorScheme.onSurfaceMuted,
+        color: context.onSurfaceMuted,
         fontSize: 12,
         fontWeight: FontWeight.w500,
         height: 1.3,
@@ -67,13 +68,13 @@ class AppTypography {
       );
 
   static TextStyle labelMedium(BuildContext context) => GoogleFonts.inter(
-        color: Theme.of(context).colorScheme.onSurfaceMuted,
+        color: context.onSurfaceMuted,
         fontSize: 12,
         fontWeight: FontWeight.w500,
       );
 
   static TextStyle labelSmall(BuildContext context) => GoogleFonts.inter(
-        color: Theme.of(context).colorScheme.onSurfaceMuted,
+        color: context.onSurfaceMuted,
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
@@ -94,7 +95,7 @@ class AppTypography {
       );
 
   static TextStyle numberLabel(BuildContext context) => GoogleFonts.jetBrainsMono(
-        color: Theme.of(context).colorScheme.onSurfaceMuted,
+        color: context.onSurfaceMuted,
         fontSize: 11,
         fontWeight: FontWeight.w500,
       );

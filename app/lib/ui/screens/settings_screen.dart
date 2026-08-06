@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/settings/settings_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
+import 'package:qwe1/ui/widgets/touch_feedback.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {

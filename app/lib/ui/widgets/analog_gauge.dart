@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 
 class AnalogGauge extends StatefulWidget {
   final double value;
@@ -79,7 +80,7 @@ class _AnalogGaugeState extends State<AnalogGauge>
                   progress: _needleAnimation.value,
                   color: color,
                   trackColor: theme.colorScheme.surfaceVariant,
-                  tickColor: theme.colorScheme.onSurfaceMuted,
+                  tickColor: context.onSurfaceMuted,
                 ),
               ),
               // Center cap
@@ -119,7 +120,7 @@ class _AnalogGaugeState extends State<AnalogGauge>
                         style: TextStyle(
                           fontSize: widget.size * 0.065,
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurfaceMuted,
+                          color: context.onSurfaceMuted,
                           letterSpacing: 1,
                         ),
                       ),
@@ -134,10 +135,10 @@ class _AnalogGaugeState extends State<AnalogGauge>
   }
 
   Color _getColor(double value, ThemeData theme) {
-    if (value >= 75) return theme.colorScheme.danger;
-    if (value >= 50) return theme.colorScheme.warning;
-    if (value >= 25) return theme.colorScheme.primary;
-    return theme.colorScheme.success;
+    if (value >= 75) return context.danger;
+    if (value >= 50) return context.warning;
+    if (value >= 25) return context.primary;
+    return context.success;
   }
 }
 

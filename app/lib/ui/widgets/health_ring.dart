@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qwe1/ui/theme/app_theme.dart';
 
 class HealthRing extends StatefulWidget {
   final double score;
@@ -124,10 +125,10 @@ class _HealthRingState extends State<HealthRing>
   }
 
   Color _getHealthColor(double score) {
-    if (score >= 75) return Theme.of(context).colorScheme.success;
-    if (score >= 50) return Theme.of(context).colorScheme.warning;
-    if (score > 0) return Theme.of(context).colorScheme.danger;
-    return Theme.of(context).colorScheme.onSurfaceMuted;
+    if (score >= 75) return context.success;
+    if (score >= 50) return context.warning;
+    if (score > 0) return context.danger;
+    return context.onSurfaceMuted;
   }
 }
 

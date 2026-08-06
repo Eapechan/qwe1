@@ -6,7 +6,7 @@ class ProgressRing extends StatelessWidget {
   final double size;
   final double strokeWidth;
   final Color color;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final bool animate;
 
   const ProgressRing({

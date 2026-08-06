@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:qwe1/domain/entities/container.dart';
+import 'package:qwe1/domain/entities/container.dart' as entity;
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
+import 'package:qwe1/ui/widgets/animated_card.dart';
 import 'package:qwe1/ui/widgets/pulse_indicator.dart';
 import 'package:qwe1/ui/widgets/sparkline.dart';
 import 'package:qwe1/core/utils/units.dart';
@@ -17,7 +18,7 @@ class ContainerCard extends StatefulWidget {
     this.onRestart,
   });
 
-  final Container container;
+  final entity.Container container;
   final VoidCallback onTap;
   final VoidCallback? onStart;
   final VoidCallback? onStop;

@@ -161,7 +161,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
           size: 40,
         ),
       ),
-    ).animate().scale(begin: const Offset(0.8, 0.8), end: Offset.one, duration: 600.ms);
+    ).animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 600.ms);
   }
 
   Widget _buildStartButton(ThemeData theme) {

@@ -1,3 +1,5 @@
+import 'package:qwe1/domain/entities/metrics.dart';
+
 class HealthScore {
   HealthScore._();
 

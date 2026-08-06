@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:qwe1/domain/entities/server.dart';
+import 'package:qwe1/domain/entities/metrics.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';

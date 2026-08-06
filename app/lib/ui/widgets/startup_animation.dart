@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qwe1/domain/entities/metrics.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
@@ -108,15 +107,6 @@ class _StartupAnimationState extends ConsumerState<StartupAnimation>
         _onServerError(next.error!);
       }
     });
-
-    ref.listen<AsyncValue<List<ContainerMetrics>>>(
-      containerMetricsProvider,
-      (previous, next) {
-        if (next.hasValue) {
-          _onContainersLoaded();
-        }
-      },
-    );
   }
 
   Future<void> _runStages() async {
@@ -306,7 +296,7 @@ class _StartupAnimationState extends ConsumerState<StartupAnimation>
         ),
         child: const Icon(Icons.dns_rounded, color: Colors.white, size: 40),
       ),
-    ).animate().scale(begin: const Offset(0.9, 0.9), end: Offset.one, duration: 600.ms);
+    ).animate().scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 600.ms);
   }
 
   Widget _buildPowerOnRing(ThemeData theme) {
@@ -406,7 +396,7 @@ class _StartupAnimationState extends ConsumerState<StartupAnimation>
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
-            color: theme.colorScheme.border.withOpacity(0.5),
+            color: context.border.withOpacity(0.5),
             width: 1,
           ),
           boxShadow: [
@@ -452,7 +442,7 @@ class _StartupAnimationState extends ConsumerState<StartupAnimation>
             Text(
               'All systems operational',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceMuted,
+                color: context.onSurfaceMuted,
                 fontWeight: FontWeight.w500,
               ),
             ),

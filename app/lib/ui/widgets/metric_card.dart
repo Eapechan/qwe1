@@ -66,7 +66,7 @@ class MetricCard extends StatelessWidget {
         ),
       )
         .animate()
-        .scale(begin: const Offset(0.8, 0.8), end: Offset.one, duration: 400.ms)
+        .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 400.ms)
         .fadeIn(duration: 300.ms),
     );
   }

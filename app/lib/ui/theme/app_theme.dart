@@ -339,14 +339,14 @@ extension AppColors on BuildContext {
   Color get gradientStart => _tokens.gradientStart;
   Color get gradientEnd => _tokens.gradientEnd;
 
-  Color get healthScoreColor(double score) {
+  Color healthScoreColor(double score) {
     if (score >= 75) return _tokens.success;
     if (score >= 50) return _tokens.warning;
     if (score > 0) return _tokens.danger;
     return _tokens.onSurfaceMuted;
   }
 
-  Color get statusColor(String status) {
+  Color statusColor(String status) {
     final s = status.toLowerCase();
     if (s == 'online' || s == 'connected' || s == 'running' || s == 'healthy') {
       return _tokens.success;
