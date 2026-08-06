@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/state/servers/server_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/widgets/animated_background.dart';
-import 'package:qwe1/ui/widgets/health_ring.dart';
-import 'package:qwe1/ui/widgets/startup_animation.dart';
 import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class StartScreen extends ConsumerStatefulWidget {
@@ -21,7 +18,6 @@ class _StartScreenState extends ConsumerState<StartScreen>
   late AnimationController _buttonController;
   late AnimationController _glowController;
   late AnimationController _rippleController;
-  bool _isPressed = false;
   bool _isAnimating = false;
 
   @override
@@ -57,22 +53,14 @@ class _StartScreenState extends ConsumerState<StartScreen>
     _glowController.forward(from: 0);
     _rippleController.forward(from: 0);
 
-    Future.delayed(const Duration(milliseconds: 900), () {
+    // Load servers (the notifier constructor already calls this, but
+    // ensure it happens here too in case the notifier was already created)
+    ref.read(serverListProvider.notifier).loadServers();
+
+    // Wait for animation to feel intentional, then navigate to dashboard
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
-        ref.read(serverListProvider.notifier).loadServers();
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const StartupAnimation(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-        );
+        context.go('/');
       }
     });
   }
@@ -82,6 +70,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: context.background,
       body: AnimatedBackground(
         child: SafeArea(
           child: Center(
@@ -161,7 +150,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
           size: 40,
         ),
       ),
-    ).animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 600.ms);
+    );
   }
 
   Widget _buildStartButton(ThemeData theme) {

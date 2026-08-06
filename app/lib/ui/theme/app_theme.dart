@@ -310,7 +310,7 @@ class _ColorTokens {
 }
 
 extension AppColors on BuildContext {
-  _ColorTokens get _tokens => Theme.of(this).brightness == Brightness.light
+  _ColorTokens get _tokens => Theme.of(this).colorScheme.brightness == Brightness.light
       ? AppTheme.lightColors
       : AppTheme.darkColors;
 

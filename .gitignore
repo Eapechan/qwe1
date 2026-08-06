@@ -48,3 +48,4 @@ enroll-qr.png
 agent.log
 agent.pid
 config.yaml
+.last-good-commit

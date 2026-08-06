@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/terminal/terminal_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
-import 'package:qwe1/ui/widgets/terminal_view.dart';
 import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class TerminalScreen extends ConsumerStatefulWidget {
@@ -36,7 +38,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             ),
           IconButton(
             icon: Icon(
-              _isConnected ? Icons.stop_circle_rounded : Icons.play_circle_rounded,
+              _isConnected
+                  ? Icons.stop_circle_rounded
+                  : Icons.play_circle_rounded,
             ),
             onPressed: _isConnected ? _disconnect : _connect,
             tooltip: _isConnected ? 'Disconnect' : 'Connect',
@@ -68,7 +72,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isConnected ? context.success : context.onSurfaceMuted,
+                    color:
+                        _isConnected ? context.success : context.onSurfaceMuted,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -92,54 +97,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             ),
           ),
 
-          // Terminal view
+          // Terminal output area
           Expanded(
             child: _isConnected
-                ? TerminalView(
-                    sessionId: _sessionId!,
-                    serverId: widget.serverId,
-                    onInput: (data) {},
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: context.primary.withOpacity(0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.terminal_rounded,
-                            size: 40,
-                            color: context.primary.withOpacity(0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No Active Session',
-                          style: AppTypography.displaySmall(context).copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Connect to start a terminal session',
-                          style: AppTypography.bodyMedium(context).copyWith(
-                            color: context.onSurfaceMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _connect,
-                          icon: const Icon(Icons.play_circle_rounded),
-                          label: const Text('Connect'),
-                        ),
-                      ],
-                    ),
-                  ),
+                ? _buildTerminalOutput()
+                : _buildDisconnectedState(),
           ),
 
           // Quick action buttons
@@ -155,11 +117,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildQuickKey('ESC', () => _sendKey('\x1b')),
-                  _buildQuickKey('TAB', () => _sendKey('\t')),
-                  _buildQuickKey('CTRL+C', () => _sendKey('\x03')),
-                  _buildQuickKey('↑', () => _sendKey('\x1b[A')),
-                  _buildQuickKey('↓', () => _sendKey('\x1b[B')),
+                  _buildQuickKey('ESC', '\x1b'),
+                  _buildQuickKey('TAB', '\t'),
+                  _buildQuickKey('CTRL+C', '\x03'),
+                  _buildQuickKey('↑', '\x1b[A'),
+                  _buildQuickKey('↓', '\x1b[B'),
                 ],
               ),
             ),
@@ -168,9 +130,93 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     );
   }
 
-  Widget _buildQuickKey(String label, VoidCallback onPressed) {
+  Widget _buildTerminalOutput() {
+    if (_sessionId == null) return const SizedBox.shrink();
+
+    final outputAsync = ref.watch(
+      terminalOutputProvider(
+        (serverId: widget.serverId, sessionId: _sessionId!),
+      ),
+    );
+
+    return outputAsync.when(
+      data: (data) {
+        final text = utf8.decode(data, allowMalformed: true);
+        return Container(
+          color: const Color(0xFF000000),
+          padding: const EdgeInsets.all(12),
+          child: SelectableText(
+            text,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+              color: Color(0xFFE0E0E0),
+              height: 1.4,
+            ),
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF06B6D4),
+          strokeWidth: 2,
+        ),
+      ),
+      error: (error, _) => Center(
+        child: Text(
+          'Error: $error',
+          style: const TextStyle(color: Colors.red),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisconnectedState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: context.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.terminal_rounded,
+              size: 40,
+              color: context.primary.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Active Session',
+            style: AppTypography.displaySmall(context).copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Connect to start a terminal session',
+            style: AppTypography.bodyMedium(context).copyWith(
+              color: context.onSurfaceMuted,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _connect,
+            icon: const Icon(Icons.play_circle_rounded),
+            label: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickKey(String label, String sequence) {
     return TouchFeedback(
-      onTap: onPressed,
+      onTap: () => _sendInput(sequence),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -185,6 +231,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _sendInput(String data) {
+    if (_sessionId == null) return;
+    final repository = ref.read(terminalRepositoryProvider);
+    repository.sendInput(
+      widget.serverId,
+      _sessionId!,
+      Uint8List.fromList(utf8.encode(data)),
     );
   }
 
@@ -208,7 +264,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
   void _disconnect() {
     if (_sessionId != null) {
-      ref.read(terminalSessionsProvider(widget.serverId).notifier).deleteSession(_sessionId!);
+      ref
+          .read(terminalSessionsProvider(widget.serverId).notifier)
+          .deleteSession(_sessionId!);
     }
     setState(() {
       _isConnected = false;
@@ -216,11 +274,21 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     });
   }
 
-  void _sendKey(String key) {
-    // TODO: Send key to terminal via WebSocket
-  }
-
   void _copyToClipboard() {
-    // TODO: Copy terminal output to clipboard
+    final outputAsync = ref.read(
+      terminalOutputProvider(
+        (serverId: widget.serverId, sessionId: _sessionId!),
+      ),
+    );
+    outputAsync.whenData((data) {
+      final text = utf8.decode(data, allowMalformed: true);
+      Clipboard.setData(ClipboardData(text: text));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terminal output copied to clipboard'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    });
   }
 }

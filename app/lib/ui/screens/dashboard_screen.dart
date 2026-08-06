@@ -179,7 +179,7 @@ class _ServerCard extends ConsumerWidget {
                   children: [
                     // Health Ring
                     HealthRing(
-                      score: 75,
+                      score: isOnline ? 75 : 0,
                       size: 80,
                       strokeWidth: 8,
                     ),

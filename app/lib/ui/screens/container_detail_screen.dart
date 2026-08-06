@@ -5,7 +5,7 @@ import 'package:qwe1/ui/theme/app_theme.dart';
 import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:qwe1/ui/widgets/pulse_indicator.dart';
 
-class ContainerDetailScreen extends ConsumerWidget {
+class ContainerDetailScreen extends ConsumerStatefulWidget {
   const ContainerDetailScreen({
     super.key,
     required this.serverId,
@@ -16,13 +16,24 @@ class ContainerDetailScreen extends ConsumerWidget {
   final String containerId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final containerAsync = ref.watch(containerProvider((serverId: serverId, containerId: containerId)));
+  ConsumerState<ContainerDetailScreen> createState() =>
+      _ContainerDetailScreenState();
+}
+
+class _ContainerDetailScreenState extends ConsumerState<ContainerDetailScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final containerAsync = ref.watch(
+      containerProvider(
+        (serverId: widget.serverId, containerId: widget.containerId),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: containerAsync.when(
-          data: (c) => Text(c.name.isNotEmpty ? c.name : c.id.substring(0, 12)),
+          data: (c) =>
+              Text(c.name.isNotEmpty ? c.name : c.id.substring(0, 12)),
           loading: () => const Text('Loading...'),
           error: (_, __) => const Text('Container'),
         ),
@@ -54,7 +65,8 @@ class ContainerDetailScreen extends ConsumerWidget {
                 value: 'kill',
                 child: Row(
                   children: [
-                    Icon(Icons.stop_circle_rounded, size: 20, color: Colors.orange),
+                    Icon(Icons.stop_circle_rounded,
+                        size: 20, color: Colors.orange),
                     SizedBox(width: 8),
                     Text('Kill', style: TextStyle(color: Colors.orange)),
                   ],
@@ -71,9 +83,7 @@ class ContainerDetailScreen extends ConsumerWidget {
                 ),
               ),
             ],
-            onSelected: (value) {
-              // TODO: Implement inspect/logs navigation
-            },
+            onSelected: (value) => _handleMenuAction(value),
           ),
         ],
       ),
@@ -83,7 +93,7 @@ class ContainerDetailScreen extends ConsumerWidget {
           children: [
             _buildHeroCard(context, container),
             const SizedBox(height: 16),
-            _buildActionButtons(context, ref),
+            _buildActionButtons(context),
             const SizedBox(height: 16),
             _buildDetailsSection(context, container),
           ],
@@ -94,7 +104,71 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroCard(BuildContext context, container) {
+  void _handleMenuAction(String value) {
+    switch (value) {
+      case 'inspect':
+        _showSnackBar('Inspect coming soon');
+        break;
+      case 'logs':
+        _showSnackBar('Container logs coming soon');
+        break;
+      case 'kill':
+        _killContainer();
+        break;
+      case 'remove':
+        _showRemoveDialog();
+        break;
+    }
+  }
+
+  void _killContainer() {
+    ref
+        .read(
+          containerListProvider(widget.serverId).notifier,
+        )
+        .killContainer(widget.containerId);
+    _showSnackBar('Killing container...');
+  }
+
+  void _showRemoveDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Container'),
+        content: const Text(
+          'This will force-remove the container. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(
+                    containerListProvider(widget.serverId).notifier,
+                  )
+                  .removeContainer(widget.containerId);
+              _showSnackBar('Removing container...');
+              Navigator.of(context).pop();
+            },
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
+  Widget _buildHeroCard(
+      BuildContext context, dynamic container) {
     final isRunning = container.state.toLowerCase() == 'running';
     final stateColor = _getStateColor(context, container.state);
 
@@ -130,7 +204,9 @@ class ContainerDetailScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      container.name.isNotEmpty ? container.name : container.id.substring(0, 12),
+                      container.name.isNotEmpty
+                          ? container.name
+                          : container.id.substring(0, 12),
                       style: AppTypography.headingMedium(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -146,7 +222,8 @@ class ContainerDetailScreen extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: stateColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -175,7 +252,8 @@ class ContainerDetailScreen extends ConsumerWidget {
               runSpacing: 6,
               children: container.ports.map((p) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: context.surfaceVariant.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(10),
@@ -193,9 +271,11 @@ class ContainerDetailScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildDetailItem(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
+              _buildDetailItem(context, 'CPU',
+                  '${container.cpuPercent.toStringAsFixed(1)}%'),
               const SizedBox(width: 12),
-              _buildDetailItem(context, 'Memory', _formatBytes(container.memoryBytes)),
+              _buildDetailItem(
+                  context, 'Memory', _formatBytes(container.memoryBytes)),
             ],
           ),
         ],
@@ -203,7 +283,8 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailItem(BuildContext context, String label, String value) {
+  Widget _buildDetailItem(
+      BuildContext context, String label, String value) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -214,16 +295,12 @@ class ContainerDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: AppTypography.labelSmall(context),
-            ),
+            Text(label, style: AppTypography.labelSmall(context)),
             const SizedBox(height: 4),
             Text(
               value,
-              style: AppTypography.numberSmall(context).copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: AppTypography.numberSmall(context)
+                  .copyWith(fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -231,12 +308,17 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+  Widget _buildActionButtons(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              ref
+                  .read(containerListProvider(widget.serverId).notifier)
+                  .startContainer(widget.containerId);
+              _showSnackBar('Starting container...');
+            },
             icon: const Icon(Icons.play_arrow_rounded, size: 20),
             label: const Text('Start'),
             style: ElevatedButton.styleFrom(
@@ -251,7 +333,12 @@ class ContainerDetailScreen extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              ref
+                  .read(containerListProvider(widget.serverId).notifier)
+                  .stopContainer(widget.containerId);
+              _showSnackBar('Stopping container...');
+            },
             icon: const Icon(Icons.stop_rounded, size: 20),
             label: const Text('Stop'),
             style: ElevatedButton.styleFrom(
@@ -266,7 +353,12 @@ class ContainerDetailScreen extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              ref
+                  .read(containerListProvider(widget.serverId).notifier)
+                  .restartContainer(widget.containerId);
+              _showSnackBar('Restarting container...');
+            },
             icon: const Icon(Icons.restart_alt_rounded, size: 20),
             label: const Text('Restart'),
             style: ElevatedButton.styleFrom(
@@ -280,7 +372,7 @@ class ContainerDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailsSection(BuildContext context, container) {
+  Widget _buildDetailsSection(BuildContext context, dynamic container) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -294,22 +386,24 @@ class ContainerDetailScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Details',
-            style: AppTypography.headingSmall(context),
-          ),
+          Text('Details', style: AppTypography.headingSmall(context)),
           const SizedBox(height: 12),
-          _buildDetailRow(context, 'ID', container.id.substring(0, 12)),
-          _buildDetailRow(context, 'Name', container.name.isNotEmpty ? container.name : '-'),
+          _buildDetailRow(
+              context, 'ID', container.id.substring(0, 12)),
+          _buildDetailRow(context, 'Name',
+              container.name.isNotEmpty ? container.name : '-'),
           _buildDetailRow(context, 'Image', container.image),
-          _buildDetailRow(context, 'Memory', _formatBytes(container.memoryBytes)),
-          _buildDetailRow(context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
+          _buildDetailRow(
+              context, 'Memory', _formatBytes(container.memoryBytes)),
+          _buildDetailRow(
+              context, 'CPU', '${container.cpuPercent.toStringAsFixed(1)}%'),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, String label, String value) {
+  Widget _buildDetailRow(
+      BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -317,17 +411,13 @@ class ContainerDetailScreen extends ConsumerWidget {
         children: [
           SizedBox(
             width: 70,
-            child: Text(
-              label,
-              style: AppTypography.labelMedium(context),
-            ),
+            child: Text(label, style: AppTypography.labelMedium(context)),
           ),
           Expanded(
             child: Text(
               value,
-              style: AppTypography.bodyMedium(context).copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.bodyMedium(context)
+                  .copyWith(fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -353,7 +443,9 @@ class ContainerDetailScreen extends ConsumerWidget {
 
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
     if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
