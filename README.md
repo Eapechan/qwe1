@@ -24,7 +24,7 @@
 | Version | Status |
 |---------|--------|
 | ✅ v2.0 | Core Platform (Stable) |
-| 🚧 v2.1 | Monitoring & UI/UX Overhaul |
+| 🚧 v2.1 | Monitoring & UI/UX Overhaul (Active) |
 | 📅 v2.2 | Dockerized Agent & Simplified Deployment |
 | 💡 v3.0 | AI Management & Automation |
 
@@ -60,8 +60,15 @@ qwe1 is a modern self-hosted server management platform focused on Docker, homel
 
 ## Current Focus
 
-The v2.1 milestone is focused on completing the monitoring experience and polishing the UI. Current work includes:
+The v2.1 milestone is focused on completing the monitoring experience and polishing the UI. Completed work includes:**
 
+- Complete UI/UX redesign with dark-first palette and animated components
+- New onboarding flow with page animations
+- Revamped startup animation with compression, ripple, and power-on effects
+- Mission Control dashboard with health ring and animated metrics
+- Redesigned container cards with pulse indicators and sparklines
+- Interactive terminal and file browser with touch feedback
+- Animated widgets library (health ring, progress ring, sparkline, animated card)
 - Live per-container metrics
 - Terminal improvements
 - File manager enhancements
