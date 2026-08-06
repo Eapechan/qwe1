@@ -58,7 +58,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
     Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) {
         ref.read(serverListProvider.notifier).loadServers();
-        Navigator.of(context).pushReplacementNamed('/');
+        context.go('/');
       }
     });
   }

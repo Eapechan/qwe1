@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qwe1/state/files/file_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:qwe1/ui/widgets/empty_state.dart';
+import 'package:qwe1/ui/widgets/touch_feedback.dart';
 
 class FileBrowserScreen extends ConsumerStatefulWidget {
   const FileBrowserScreen({super.key, required this.serverId, this.initialPath = '/'});
@@ -71,7 +73,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => Center(child: CircularProgressIndicator(color: context.primary)),
               error: (error, _) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -136,12 +138,12 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: isLast ? FontWeight.w600 : FontWeight.w500,
-                color: isLast
-                    ? Theme.of(context).colorScheme.primary
-                    : context.onSurfaceMuted,
-              ),
+          style: AppTypography.bodySmall(context).copyWith(
+            fontWeight: isLast ? FontWeight.w600 : FontWeight.w500,
+            color: isLast
+                ? context.primary
+                : context.onSurfaceMuted,
+          ),
         ),
       ),
     );
@@ -152,7 +154,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: InkWell(
+      child: TouchFeedback(
         onTap: isDir
             ? () => setState(() {
                   final basePath = _currentPath.endsWith('/')
@@ -161,7 +163,6 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   _currentPath = '$basePath/${item.name}';
                 })
             : () => _showFileActions(context, item),
-        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
@@ -179,7 +180,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   isDir ? Icons.folder_rounded : _getFileIcon(item.name),
                   color: isDir
                       ? context.warning
-                    : context.onSurfaceMuted,
+                      : context.onSurfaceMuted,
                   size: 20,
                 ),
               ),
@@ -190,9 +191,9 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   children: [
                     Text(
                       item.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
+                      style: AppTypography.bodyMedium(context).copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -200,9 +201,9 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                       const SizedBox(height: 2),
                       Text(
                         _formatSize(item.size!),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.onSurfaceMuted,
-                            ),
+                        style: AppTypography.bodySmall(context).copyWith(
+                          color: context.onSurfaceMuted,
+                        ),
                       ),
                     ],
                   ],
@@ -238,7 +239,7 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   },
                   icon: Icon(
                     Icons.more_vert_rounded,
-                color: context.onSurfaceMuted,
+                    color: context.onSurfaceMuted,
                     size: 20,
                   ),
                 ),

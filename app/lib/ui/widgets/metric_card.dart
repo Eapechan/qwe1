@@ -1,6 +1,8 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/widgets/progress_ring.dart';
+import 'dart:math' as math;
 
 class MetricCard extends StatelessWidget {
   const MetricCard({
@@ -22,24 +24,16 @@ class MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (progress != null)
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: CustomPaint(
-                  painter: _ProgressPainter(
-                    progress: progress!,
-                    color: color,
-                    backgroundColor: color.withOpacity(0.12),
-                  ),
-                  child: Center(
-                    child: Icon(icon, color: color, size: 18),
-                  ),
-                ),
+              ProgressRing(
+                progress: progress!,
+                size: 40,
+                strokeWidth: 4,
+                color: color,
               )
             else
               Container(
@@ -51,7 +45,7 @@ class MetricCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -70,53 +64,10 @@ class MetricCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )
+        .animate()
+        .scale(begin: const Offset(0.8, 0.8), end: Offset.one, duration: 400.ms)
+        .fadeIn(duration: 300.ms),
     );
-  }
-}
-
-class _ProgressPainter extends CustomPainter {
-  _ProgressPainter({
-    required this.progress,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  final double progress;
-  final Color color;
-  final Color backgroundColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - 8) / 2;
-
-    final bgPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawCircle(center, radius, bgPaint);
-
-    final progressPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final sweepAngle = 2 * math.pi * progress.clamp(0.0, 1.0);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      sweepAngle,
-      false,
-      progressPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

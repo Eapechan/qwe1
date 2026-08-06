@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -90,6 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -101,7 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   onPressed: () => context.go('/'),
                   child: Text(
                     'Skip',
-                    style: TextStyle(
+                    style: AppTypography.bodyMedium(context).copyWith(
                       color: context.onSurfaceMuted,
                       fontWeight: FontWeight.w500,
                     ),
@@ -156,7 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(36),
+                      borderRadius: BorderRadius.circular(32),
                       boxShadow: [
                         BoxShadow(
                           color: page.gradientColors.first.withOpacity(0.3),
@@ -176,19 +178,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               const SizedBox(height: 48),
               Text(
                 page.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
+                style: AppTypography.displayMedium(context).copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
                 page.description,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: context.onSurfaceMuted,
-                      height: 1.6,
-                    ),
+                style: AppTypography.bodyMedium(context).copyWith(
+                  color: context.onSurfaceMuted,
+                  height: 1.6,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -229,7 +231,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: SizedBox(
         width: double.infinity,
-        height: 52,
+        height: 56,
         child: ElevatedButton(
           onPressed: () {
             if (!isLast) {
@@ -241,12 +243,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               context.go('/');
             }
           },
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Text(
-              isLast ? 'Get Started' : 'Next',
-              key: ValueKey(isLast),
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
+          ),
+          child: Text(
+            isLast ? 'Get Started' : 'Next',
           ),
         ),
       ),

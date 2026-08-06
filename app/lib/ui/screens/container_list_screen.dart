@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qwe1/core/error/app_exception.dart';
-import 'package:qwe1/state/docker/container_provider.dart';
 import 'package:qwe1/ui/theme/app_theme.dart';
+import 'package:qwe1/ui/theme/app_typography.dart';
 import 'package:qwe1/ui/widgets/container_card.dart';
 import 'package:qwe1/ui/widgets/empty_state.dart';
+import 'package:qwe1/ui/widgets/skeleton_card.dart';
+import 'package:qwe1/state/docker/container_provider.dart';
 
 class ContainerListScreen extends ConsumerStatefulWidget {
   const ContainerListScreen({super.key, required this.serverId});
@@ -25,6 +27,7 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
     final containersAsync = ref.watch(containerListProvider(widget.serverId));
 
     return Scaffold(
+      backgroundColor: context.background,
       appBar: AppBar(
         title: const Text('Containers'),
         actions: [
@@ -44,7 +47,10 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
               decoration: InputDecoration(
                 hintText: 'Search containers...',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -69,11 +75,17 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
               data: (containers) {
                 var filtered = containers.where((c) {
                   final matchesFilter = _filter == 'all' ||
-                      (_filter == 'running' && c.state.toLowerCase() == 'running') ||
-                      (_filter == 'stopped' && c.state.toLowerCase() != 'running');
+                      (_filter == 'running' &&
+                          c.state.toLowerCase() == 'running') ||
+                      (_filter == 'stopped' &&
+                          c.state.toLowerCase() != 'running');
                   final matchesSearch = _search.isEmpty ||
-                      c.name.toLowerCase().contains(_search.toLowerCase()) ||
-                      c.image.toLowerCase().contains(_search.toLowerCase());
+                      c.name
+                          .toLowerCase()
+                          .contains(_search.toLowerCase()) ||
+                      c.image
+                          .toLowerCase()
+                          .contains(_search.toLowerCase());
                   return matchesFilter && matchesSearch;
                 }).toList();
 
@@ -102,20 +114,30 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
                           '/server/${widget.serverId}/containers/${container.id}',
                         ),
                         onStart: () => ref
-                            .read(containerListProvider(widget.serverId).notifier)
+                            .read(
+                              containerListProvider(widget.serverId).notifier,
+                            )
                             .startContainer(container.id),
                         onStop: () => ref
-                            .read(containerListProvider(widget.serverId).notifier)
+                            .read(
+                              containerListProvider(widget.serverId).notifier,
+                            )
                             .stopContainer(container.id),
                         onRestart: () => ref
-                            .read(containerListProvider(widget.serverId).notifier)
+                            .read(
+                              containerListProvider(widget.serverId).notifier,
+                            )
                             .restartContainer(container.id),
                       );
                     },
                   ),
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: 5,
+                itemBuilder: (context, index) => const SkeletonCard(),
+              ),
               error: (error, _) {
                 final isDockerUnavailable =
                     error is ServerUnavailableException;
@@ -140,19 +162,19 @@ class _ContainerListScreenState extends ConsumerState<ContainerListScreen> {
                               ? 'Docker is not available'
                               : 'Error: $error',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: AppTypography.titleLarge(context),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           isDockerUnavailable
                               ? 'Docker is not reachable on this server. '
-                                  'Confirm the Docker daemon socket is mounted and the '
-                                  'agent can access it.'
+                                  'Confirm the Docker daemon socket is mounted '
+                                  'and the agent can access it.'
                               : '',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.onSurfaceMuted,
-                              ),
+                          style: AppTypography.bodySmall(context).copyWith(
+                            color: context.onSurfaceMuted,
+                          ),
                         ),
                       ],
                     ),
